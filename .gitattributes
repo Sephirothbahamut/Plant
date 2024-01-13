@@ -1,3 +1,9 @@
+# sources
+
+*.aseprite binary
+*.pdn    binary
+
+# export
 *.png    binary
 *.jpg    binary
 *.jpeg   binary
