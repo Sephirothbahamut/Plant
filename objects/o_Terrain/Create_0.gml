@@ -1,13 +1,8 @@
-/// @description Insert description here
-// You can write your code in this editor
+tile_size = 64;
 
-data = ds_grid_create(10, 10);
+grid = new (namespace().utils.grid)(5, 5);
 
-for (var _x = 0; _x < ds_grid_width(data); _x += 1)
+grid.set_each(function(coords)
 	{
-    for (var _y = 0; _y < ds_grid_height(data); _y += 1)
-		{
-		ds_grid_set(data, _x, _y, new Tile());
-		}
-	}
-
+	return new (namespace().terrain.tile_data)();
+	});

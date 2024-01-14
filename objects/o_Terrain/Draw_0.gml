@@ -1,24 +1,38 @@
 /// @description Insert description here
 // You can write your code in this editor
-
-var tilemap_layer = layer_get_id("tiles_terrain");
-var tilemap_id = layer_tilemap_get_id(tilemap_layer);
-
-for (var _x = 0; _x < ds_grid_width(data); _x += 1)
+/*
+for (var ix = 0; ix < ds_grid_width(data); ix += 1)
 	{
-    for (var _y = 0; _y < ds_grid_height(data); _y += 1)
+    for (var iy = 0; iy < ds_grid_height(data); iy += 1)
 		{
-		var tile_data = ds_grid_get(data, _x, _y);
-		var colour = make_colour_rgb(tile_data.humidity, tile_data.humidity, tile_data.humidity);
-		draw_set_colour(colour);
+		var tile_data = ds_grid_get(data, ix, iy);
 		
-		//draw_rectangle(x1, y1, x2, y2, false);
 		
-		var tilemap_tile = tilemap_get(tilemap_id, _x, _y);
-		tile_set_index(tilemap_tile, tile_data.humidity < .5 ? 1 : 2);
-		tilemap_set(tilemap_id, tilemap_tile, _x, _y);
+		
+		var colour = make_colour_hsv(colour_get_hue(c_olive), tile_data.humidity * 255, 255);
 		}
 	}
+*/
+//draw_sprite
+//draw_tile
 
-draw_sprite
-draw_tile
+
+grid.for_each(function(value, coords)
+	{
+	var x1 = coords.x * tile_size;
+	var y1 = coords.y * tile_size;
+	var x2 = x1 + tile_size;
+	var y2 = y1 + tile_size;
+		
+	shader_set(sh_terrain);
+	var shader_param_humidity = shader_get_uniform(sh_terrain, "terrain_humidity");
+	var shader_param_sunlight = shader_get_uniform(sh_terrain, "terrain_sunlight");
+	shader_set_uniform_f(shader_param_humidity, value.humidity);
+	shader_set_uniform_f(shader_param_sunlight, value.sunlight);
+	
+	var scale = namespace().utils.sprite.size_to_scale(spr_terrain_default, tile_size, tile_size);
+	draw_sprite_ext(spr_terrain_default, -1, x1, y1, scale.x, scale.y, 0, c_white, 1);
+	
+	shader_reset();
+	});
+	
