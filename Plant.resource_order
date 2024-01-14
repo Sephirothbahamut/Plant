@@ -9,6 +9,7 @@
     {"name":"Paths","order":4,"path":"folders/Paths.yy",},
     {"name":"Rooms","order":10,"path":"folders/Rooms.yy",},
     {"name":"Scripts","order":5,"path":"folders/Scripts.yy",},
+    {"name":"plant","order":7,"path":"folders/Scripts/plant.yy",},
     {"name":"utils","order":6,"path":"folders/Scripts/utils.yy",},
     {"name":"Sequences","order":11,"path":"folders/Sequences.yy",},
     {"name":"Shaders","order":6,"path":"folders/Shaders.yy",},
@@ -17,7 +18,6 @@
     {"name":"terrain","order":1,"path":"folders/Sprites/terrain.yy",},
     {"name":"Tile Sets","order":2,"path":"folders/Tile Sets.yy",},
     {"name":"Timelines","order":8,"path":"folders/Timelines.yy",},
-    {"name":"plant","order":7,"path":"folders/Scripts/plant.yy",},
   ],
   "ResourceOrderSettings": [
     {"name":"Sprite5","order":2,"path":"sprites/Sprite5/Sprite5.yy",},
@@ -27,6 +27,7 @@
     {"name":"namespace","order":1,"path":"scripts/namespace/namespace.yy",},
     {"name":"plant_tile_data","order":1,"path":"scripts/plant_tile_data/plant_tile_data.yy",},
     {"name":"spr_plant_default","order":3,"path":"sprites/spr_plant_default/spr_plant_default.yy",},
+    {"name":"terrain_tile_data","order":2,"path":"scripts/terrain_tile_data/terrain_tile_data.yy",},
     {"name":"spr_terrain_default","order":4,"path":"sprites/spr_terrain_default/spr_terrain_default.yy",},
     {"name":"t","order":4,"path":"scripts/t/t.yy",},
     {"name":"vec2","order":3,"path":"scripts/vec2/vec2.yy",},

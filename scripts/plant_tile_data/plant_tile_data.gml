@@ -1,4 +1,4 @@
-function terrain_tile_data() constructor
+function plant_tile_data() constructor
 	{
 	humidity = 0;
 	}
