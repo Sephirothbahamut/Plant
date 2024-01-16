@@ -20,24 +20,21 @@ map_grid.set_each(function(coords, grid_size)
 		};
 	}, grid_size);
 
-// Write map data to buffer, transfer buffer to surface
-map_render_data_surface_tile_indices = surface_create(map_size.x, map_size.y, surface_r8unorm);
-map_render_data_surface_tile_data    = surface_create(map_size.x, map_size.y, surface_rgba16float);
+// Write map data to buffer
+var buffer_data_count_per_element = 3; // Tile_index, humidity, sunlight
+var buffer_elements_count = map_grid.width() * map_grid.height();
+var buffer_floats_count = buffer_data_count_per_element * buffer_floats_count;
+var buffer_data_type_size = buffer_sizeof(buffer_f32);
+var buffer_total_size = buffer_floats_count * buffer_data_type_size;
 
-map_render_data_buffer_tile_indices = buffer_create(map_grid.width() * map_grid.height() * buffer_sizeof(buffer_u8 )    , buffer_fixed, 1);
-map_render_data_buffer_tile_data    = buffer_create(map_grid.width() * map_grid.height() * buffer_sizeof(buffer_f16) * 4, buffer_fixed, 2);
+map_render_data_buffer = buffer_create(buffer_total_size, buffer_fixed, 1);
+
 map_grid.for_each(function(value, coords)
 	{
-	buffer_write(map_render_data_buffer_tile_indices, buffer_u8 , value.tile_index);
-	buffer_write(map_render_data_buffer_tile_data   , buffer_f16, value.humidity);
-	buffer_write(map_render_data_buffer_tile_data   , buffer_f16, value.sunlight);
-	buffer_write(map_render_data_buffer_tile_data   , buffer_f16, 0);
-	buffer_write(map_render_data_buffer_tile_data   , buffer_f16, 0);
+	buffer_write(map_render_data_buffer, buffer_f32, value.tile_index);
+	buffer_write(map_render_data_buffer, buffer_f32, value.humidity);
+	buffer_write(map_render_data_buffer, buffer_f32, value.sunlight);
 	});
-buffer_set_surface(map_render_data_buffer_tile_indices, map_render_data_surface_tile_indices, 0);
-buffer_set_surface(map_render_data_buffer_tile_data   , map_render_data_surface_tile_data   , 0);
-buffer_delete(map_render_data_buffer_tile_indices);
-buffer_delete(map_render_data_buffer_tile_data   );
 
 map_render_data_texture_tile_indices = surface_get_texture(map_render_data_surface_tile_indices);
 map_render_data_texture_tile_data    = surface_get_texture(map_render_data_surface_tile_data   );
@@ -62,17 +59,18 @@ vertex_end(vertex_buffer);
 
 map_render_data_texture_tileset = sprite_get_texture(spr_sample_tileset, 0);
 
-shader_uniform_tile_size    = shader_get_uniform(sh_terrain2, "tile_size");
-shader_uniform_grid_size    = shader_get_uniform(sh_terrain2, "grid_size");
-shader_sampler_grid_indices = shader_get_sampler_index(sh_terrain2, "grid_indices");
-shader_sampler_grid_data    = shader_get_sampler_index(sh_terrain2, "grid_data"   );
+shader_uniform_tile_size   = shader_get_uniform(sh_terrain2, "tile_size");
+shader_uniform_grid_size   = shader_get_uniform(sh_terrain2, "grid_size");
+shader_uniform_buffer_data = shader_get_uniform(sh_terrain2, "buffer_data");
 
 shader_set(sh_terrain2);
 shader_set_uniform_f(shader_uniform_tile_size, tile_size);
 shader_set_uniform_f(shader_uniform_grid_size, grid_size);
-texture_set_stage(shader_sampler_tile_indices, map_render_data_texture_tile_indices);
-texture_set_stage(shader_sampler_tile_data   , map_render_data_texture_tile_data   );
+shader_set_uniform_f_buffer(shader_sampler_buffer_data, map_render_data_buffer, 0, buffer_floats_count);
 vertex_submit(vertex_buffer, pr_trianglelist, map_render_data_texture_tileset);
 shader_reset();
 
-shader_set_uniform_f_buffer()
+
+
+	
+buffer_delete(map_render_data_buffer);

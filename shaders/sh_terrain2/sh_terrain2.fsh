@@ -1,15 +1,12 @@
 uniform vec2  grid_size;
 uniform float tile_size;
-uniform sampler2D grid_indices;
-uniform sampler2D grid_data;
+uniform floatBuffer buffer_data;
 
 void main()
 	{
 	vec2 pixel_coords_in_tile = mod(gl_Position, tile_size);
 	vec2 tile_coords_in_grid = floor(gl_Position / tile_size);
 	
-	uint tile_index = texture2D(grid_indices, tile_coords_in_grid);	
-	float humidity = texture2D(grid_data)
 		
 		
 		
