@@ -8,7 +8,7 @@ function game_terrain(width, height) constructor
 		});
 		
 	draw = function()
-		{
+		{	
 		shader_set(globals().shaders.terrain.shader);
 		
 		data.for_each(function(value, coords)

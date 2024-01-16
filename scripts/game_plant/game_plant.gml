@@ -4,7 +4,7 @@ function game_plant(width, height) constructor
 
 	data.set_each(function(coords)
 		{
-		return new game_plant_tile_data();
+		return noone;
 		});
 		
 	draw = function()
@@ -13,6 +13,8 @@ function game_plant(width, height) constructor
 		
 		data.for_each(function(value, coords)
 			{
+			if(value == noone) { return; }
+				
 			var x1 = coords.x * globals().constants.tile_size;
 			var y1 = coords.y * globals().constants.tile_size;
 			var x2 = x1       + globals().constants.tile_size;

@@ -48,8 +48,8 @@
   },
   "origin": 9,
   "parent": {
-    "name": "terrain",
-    "path": "folders/Sprites/terrain.yy",
+    "name": "plant",
+    "path": "folders/Sprites/plant.yy",
   },
   "preMultiplyAlpha": false,
   "sequence": {
