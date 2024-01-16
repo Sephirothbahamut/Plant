@@ -4,8 +4,8 @@
 varying vec2 v_vTexcoord;
 varying vec4 v_vColour;
 
-uniform float terrain_humidity;
-uniform float terrain_sunlight;
+uniform float humidity;
+uniform float sunlight;
 
 // Colour conversions: https://forum.gamemaker.io/index.php?threads/color-math.105462/
 
@@ -37,9 +37,8 @@ vec3 rgb(float h, float s, float v)
 
 void main()
 	{
-	float humidity_multiplier = terrain_humidity;
-	float sunlight_multiplier = .25 + (terrain_sunlight / 2.);
-		
+	float humidity_multiplier = humidity;
+	float sunlight_multiplier = .25 + (sunlight / 2.);
 		
 	vec4 base_colour = v_vColour * texture2D(gm_BaseTexture, v_vTexcoord);
 	float base_a = base_colour.w;
