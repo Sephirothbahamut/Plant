@@ -1,4 +1,3 @@
-
 #include <cmath>
 #include <vector>
 #include <string>
@@ -46,29 +45,23 @@ namespace game
 		{
 		public:
 			struct create_info { utils::math::vec2s grid_size; };
-			terrain(const create_info& create_info) noexcept : grid_data{create_info.grid_size}, grid_data_draw{create_info.grid_size}, data_humidity_backbuffer{create_info.grid_size}, data_fire_backbuffer{ create_info.grid_size } {}
+			terrain(const create_info& create_info) noexcept : grid_data{create_info.grid_size}, grid_data_draw{create_info.grid_size}, data_humidity_backbuffer{create_info.grid_size} {}
 
 			struct tile
 				{
 				float humidity{0.f};
 				float sunlight{0.f};
-				bool is_on_fire;
 				};
-			enum fire_state{on, off};
+
 			utils::containers::matrix_dyn<tile> grid_data;
 			utils::containers::matrix_dyn<tile> grid_data_draw;
 			utils::containers::matrix_dyn<float> data_humidity_backbuffer;
-			utils::containers::matrix_dyn<fire_state> data_fire_backbuffer;
 
-			void step(float delta_time, utils::math::vec2i wind_direction)
+			void step(float delta_time)
 				{
 				backbuffer_to_front();
 				zero_backbuffer    ();
 				update_backbuffer  ();
-
-				zero_fire_backbuffer();
-				spread_fire(wind_direction);
-				backbuffer_to_front();
 
 				//auto indices{utils::indices(grid_data)};
 				//std::for_each(std::execution::par_unseq, indices.begin(), indices.end(), [this](const size_t& index)
@@ -91,47 +84,6 @@ namespace game
 				}
 
 		private:
-			void spread_fire(const utils::math::vec2i wind_direction)
-				{
-				auto indices{ utils::indices(grid_data) };
-
-				std::for_each(std::execution::par_unseq, indices.begin(), indices.end(), [this, wind_direction](const size_t& index)
-					{
-					utils::math::vec2s coords{ grid_data.get_coords(index) };
-					utils::math::vec2s target_coords{ coords + wind_direction };
-					const tile& sourceTile{ grid_data[coords] };
-					fire_state& targetTile{ data_fire_backbuffer[target_coords] };
-					if (sourceTile.is_on_fire == true)
-						{
-						targetTile = fire_state::on;
-						}
-					});
-				}
-
-			void zero_fire_backbuffer() noexcept
-				{
-				std::for_each(std::execution::par_unseq, data_fire_backbuffer.begin(), data_fire_backbuffer.end(), [](fire_state& tile_data)
-					{
-					tile_data = fire_state::off;
-					});
-				}
-
-			void backbuffer_fire_to_front() noexcept
-				{
-				auto indices{ utils::indices(grid_data) };
-
-				std::for_each(std::execution::par_unseq, indices.begin(), indices.end(), [this](const size_t& index)
-					{
-					utils::math::vec2s coords{ grid_data.get_coords(index) };
-					auto& tile_data{ grid_data[coords] };
-					const auto& data_fire_backbuffer_tile{ data_fire_backbuffer[coords] };
-					if (data_fire_backbuffer_tile == fire_state::on) 
-						{
-						tile_data.is_on_fire = data_fire_backbuffer_tile;
-						}
-					});
-				}
-
 			void update_backbuffer_tile(const tile& tile_data, float& target_data) noexcept
 				{
 				target_data += tile_data.humidity / 2.f;
@@ -205,16 +157,6 @@ namespace game
 					utils::math::vec2s coords{grid_data.get_coords(index)};
 					if (coords.x < (grid_data.width() - 1) && coords.y > 0) { update_backbuffer_tile(grid_data[coords], data_humidity_backbuffer[coords.x + 1, coords.y - 1]); }
 					});
-
-				//update_backbuffer_pass({ 0,  0});
-				//update_backbuffer_pass({-1,  0});
-				//update_backbuffer_pass({-1, -1});
-				//update_backbuffer_pass({ 0, -1});
-				//update_backbuffer_pass({ 1, -1});
-				//update_backbuffer_pass({ 1,  0});
-				//update_backbuffer_pass({ 1,  1});
-				//update_backbuffer_pass({ 0,  1});
-				//update_backbuffer_pass({-1,  1});
 				}
 
 			void backbuffer_to_front() noexcept
@@ -230,6 +172,33 @@ namespace game
 					});
 				}
 		};
+
+
+	class renderer
+		{
+		public:
+			renderer()
+				{
+				va[0].color = sf::Color{0, 0, 255};
+				va[1].color = sf::Color{0, 255, 0};
+				va[2].color = sf::Color{255, 0, 0};
+				}
+
+			void draw(sf::RenderTarget& render_target, float delta_time, float interpolation)
+				{
+				render_target.draw(va);
+				}
+
+			void on_resize(utils::math::vec2s new_size)
+				{
+				va[1].position.x = new_size.x * 2;
+				va[2].position.y = new_size.y * 2;
+				}
+
+		private:
+			sf::VertexArray va{sf::Triangles, 3};
+
+		};
 	}
 
 int main()
@@ -239,23 +208,42 @@ int main()
 	iige::window window{iige::window::create_info{.title{"Plant"}, .size{800, 600}}};
 
 	game::terrain terrain{game::terrain::create_info{.grid_size{200, 200}}};
-
+	game::renderer renderer;
 
 	iige::systems_manager systems_manager;
 	systems_manager.step.emplace([&terrain](float delta_time)
 		{
 		terrain.step(delta_time);
 		});
-	systems_manager.draw.emplace([&terrain](float delta_time, float interpolation)
+	systems_manager.draw.emplace([&window, &renderer](float delta_time, float interpolation)
 		{
-		terrain.draw(delta_time, interpolation);
+		//terrain.draw(delta_time, interpolation);
+		renderer.draw(window, delta_time, interpolation);
+
+		window.display();
 		});
 
-	iige::window_loop_interop                       window_loop_interop{window, systems_manager};
-	window_loop_interop.events_handler = [](const sf::Event&) { return true; };
+	iige::window_loop_interop window_loop_interop{window, systems_manager};
+	window_loop_interop.events_handler = [&](const sf::Event& event) 
+		{
+		switch (event.type)
+			{
+			case sf::Event::Closed: window.close(); break;
+			case sf::Event::Resized: 
+				{
+				sf::FloatRect visibleArea(0, 0, event.size.width, event.size.height);
+				window.setView(sf::View(visibleArea));
+
+				renderer.on_resize({event.size.width, event.size.height});
+				break;
+				}
+			}
+
+		return true; 
+		};
 
 	window.display();
-	iige::loop::fixed_fps_and_game_speed loop{window_loop_interop, 10.f};
+	iige::loop::fixed_game_speed_variable_framerate loop{window_loop_interop, 10.f};
 
 	loop.run();
 	}
