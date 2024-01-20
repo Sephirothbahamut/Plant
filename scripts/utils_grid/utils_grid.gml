@@ -1,6 +1,6 @@
 function utils_grid(in_width = 1, in_height = 1) constructor
 	{
-	data = ds_grid_create(globals().utils.t.int(in_width), globals().utils.t.int(in_height));
+	data = ds_grid_create(in_width, in_height);
 	
 	for_each = function(callback, captures = {})
 		{
@@ -12,7 +12,18 @@ function utils_grid(in_width = 1, in_height = 1) constructor
 				}
 			}
 		}
-		
+	
+	for_each_subregion = function(callback, from, to, captures = {})
+		{
+		for(var iy = from.y; iy < to.y; iy++)
+			{
+			for(var ix = from.x; ix < to.y; ix++)
+				{
+				callback(ds_grid_get(data, ix, iy), new (globals().utils.vec2)(ix, iy), captures)
+				}
+			}
+		}
+	
 	set_each = function(callback, captures = {})
 		{
 		for(var iy = 0; iy < height(); iy++)

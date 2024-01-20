@@ -14,7 +14,7 @@ void main()
 		
 		
 		
-	gl_FragColor = vec4(humidity, uv.x, uv.y, 1);
+	gl_FragColor = vec4(1, uv.x, uv.y, 1);
     //gl_FragColor = v_vColour * texture2D( gm_BaseTexture, v_vTexcoord );
 	//gl_FragColor = texture;
 	}

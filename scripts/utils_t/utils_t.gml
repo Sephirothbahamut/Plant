@@ -1,4 +1,4 @@
-function error(type_name)	
+/*function error(type_name)	
 	{
 	show_error("Expected type \"" + type_name + "\".", true);
 	}
@@ -47,4 +47,4 @@ function utils_t()
 			return value;
 			}
 		}
-	}
+	}*/

@@ -9,7 +9,7 @@ function globals()
 	
 		utils:
 			{
-			t     : utils_t(),
+			//t     : utils_t(),
 			vec2  : utils_vec2,
 			grid  : utils_grid,
 			sprite: utils_sprite()
@@ -25,7 +25,8 @@ function globals()
 			terrain: 
 				{
 				class: game_terrain,
-				tile_data: game_terrain_tile_data
+				tile_data: game_terrain_tile_data,
+				renderer: game_terrain_renderer
 				}
 			},
 	

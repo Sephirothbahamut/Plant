@@ -1,36 +1,40 @@
 function game_terrain(width, height) constructor
 	{
 	data = new utils_grid(width, height);
+	data1 = new utils_grid(width, height);
+	renderer = new (globals().game.terrain.renderer)();
 
-	data.set_each(function(coords)
+	data.set_each(function(coords, passthrough)
 		{
-		return new game_terrain_tile_data();
-		});
+		tile_data = new game_terrain_tile_data();
+		tile_data.tile_index = (coords.x + (coords.y * passthrough.grid_width)) % 10;
+		return tile_data;
+		}, {grid_width: width});
+	data1.set_each(function(coords, passthrough)
+		{
+		tile_data = new game_terrain_tile_data();
+		tile_data.tile_index = (coords.x + (coords.y * passthrough.grid_width)) % 10;
+		return tile_data;
+		}, {grid_width: width});
 		
 	draw = function()
-		{	
-		shader_set(globals().shaders.terrain.shader);
+		{
+		renderer.draw_vertexbuffer(data);
+		}
 		
-		data.for_each(function(value, coords)
+	step = function()
+		{
+		data.for_each(function(tile_data)
 			{
-			var x1 = coords.x * globals().constants.tile_size;
-			var y1 = coords.y * globals().constants.tile_size;
-			var x2 = x1       + globals().constants.tile_size;
-			var y2 = y1       + globals().constants.tile_size;
-		
-			shader_set_uniform_f(globals().shaders.terrain.parameters.humidity, value.humidity);
-			shader_set_uniform_f(globals().shaders.terrain.parameters.sunlight, value.sunlight);
-	
-			var scale = utils_sprite().size_to_scale
-				(
-				spr_terrain_default,
-				globals().constants.tile_size,
-				globals().constants.tile_size
-				);
-			draw_sprite_ext(spr_terrain_default, -1, x1, y1, scale.x, scale.y, 0, c_white, 1);
-			});
+			tile_data.humidity = (sin(get_timer() / 1000000) + 1)/2;
+			})
 			
-		shader_reset();
+		var pippo = {value: 0};
+		data1.for_each(function(tile_data, coords, pippo)
+			{
+			pippo.value += tile_data.humidity;
+			tile_data.humidity /= 2;
+			}, pippo)
 		}
 	}
 
