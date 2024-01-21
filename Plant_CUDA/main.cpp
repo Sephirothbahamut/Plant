@@ -29,7 +29,6 @@
 
 #include <chrono>
 
-
 std::chrono::time_point program_start{std::chrono::high_resolution_clock::now()};
 
 float time_since_game_start()
@@ -201,8 +200,10 @@ namespace game
 		};
 	}
 
-int main()
+	#include <SFML/OpenGL.hpp>
+int maain()
 	{
+
 	sf_globals::font.loadFromFile("cour.ttf");
 
 	iige::window window{iige::window::create_info{.title{"Plant"}, .size{800, 600}}};
@@ -246,4 +247,6 @@ int main()
 	iige::loop::fixed_game_speed_variable_framerate loop{window_loop_interop, 10.f};
 
 	loop.run();
+
+	return 0;
 	}
