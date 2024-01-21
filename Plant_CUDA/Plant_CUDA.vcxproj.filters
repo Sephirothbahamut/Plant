@@ -36,14 +36,32 @@
     <ClInclude Include="IIGE\window_loop_interop.h">
       <Filter>Header Files\IIGE</Filter>
     </ClInclude>
+    <ClInclude Include="game.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="nlohmann_json.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cuda.cuh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="game_gpu_impl.cuh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="game_loading.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="kernel.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="game_impl.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
   </ItemGroup>

@@ -1,4 +1,5 @@
 #include <cmath>
+#include <chrono>
 #include <vector>
 #include <string>
 #include <memory>
@@ -20,207 +21,32 @@
 #include <SFML/Graphics.hpp>
 
 #include "IIGE/loop.h"
+#include "IIGE/window.h"
 #include "IIGE/systems_manager.h"
 #include "IIGE/window_loop_interop.h"
 
-#include "IIGE/window.h"
-
+#include "game.h"
 #include "sfglobals.h"
 
-#include <chrono>
-
-std::chrono::time_point program_start{std::chrono::high_resolution_clock::now()};
-
-float time_since_game_start()
+int main()
 	{
-	auto now{std::chrono::high_resolution_clock::now()};
-	std::chrono::duration<float> df{now - program_start};
-	return df.count();
-	}
-
-namespace game
-	{
-	class terrain
-		{
-		public:
-			struct create_info { utils::math::vec2s grid_size; };
-			terrain(const create_info& create_info) noexcept : grid_data{create_info.grid_size}, grid_data_draw{create_info.grid_size}, data_humidity_backbuffer{create_info.grid_size} {}
-
-			struct tile
-				{
-				float humidity{0.f};
-				float sunlight{0.f};
-				};
-
-			utils::containers::matrix_dyn<tile> grid_data;
-			utils::containers::matrix_dyn<tile> grid_data_draw;
-			utils::containers::matrix_dyn<float> data_humidity_backbuffer;
-
-			void step(float delta_time)
-				{
-				backbuffer_to_front();
-				zero_backbuffer    ();
-				update_backbuffer  ();
-
-				//auto indices{utils::indices(grid_data)};
-				//std::for_each(std::execution::par_unseq, indices.begin(), indices.end(), [this](const size_t& index)
-				//	{
-				//	utils::math::vec2s coords{grid_data.get_coords(index)};
-				//	grid_data[coords].humidity = ((std::sin(time_since_game_start()) + 1.f) / 2.f);
-				//	});
-				}
-
-			void draw(float delta_time, float interpolation)
-				{
-
-				auto indices{utils::indices(grid_data)};
-
-				std::for_each(std::execution::par_unseq, indices.begin(), indices.end(), [this, interpolation](const size_t& index)
-					{
-					utils::math::vec2s coords{grid_data.get_coords(index)};
-					grid_data_draw[coords].humidity = std::lerp(grid_data[coords].humidity, data_humidity_backbuffer[coords], interpolation);
-					});
-				}
-
-		private:
-			void update_backbuffer_tile(const tile& tile_data, float& target_data) noexcept
-				{
-				target_data += tile_data.humidity / 2.f;
-				}
-
-			void update_backbuffer_pass(const utils::math::vec2s& delta) noexcept
-				{
-				auto indices{utils::indices(grid_data)};
-
-				std::for_each(std::execution::par_unseq, indices.begin(), indices.end(), [this, &delta](const size_t& index)
-					{
-					utils::math::vec2s coords{grid_data.get_coords(index)};
-					utils::math::vec2s target_coords{coords + delta};
-					if (grid_data.validate_coords(target_coords))
-						{
-						update_backbuffer_tile(grid_data[coords], data_humidity_backbuffer[target_coords]);
-						}
-					});
-				}
-
-			void zero_backbuffer() noexcept
-				{
-				std::for_each(std::execution::par_unseq, data_humidity_backbuffer.begin(), data_humidity_backbuffer.end(), [](float& tile_data)
-					{
-					tile_data = 0;
-					});
-				}
-			void update_backbuffer() noexcept
-				{
-				auto indices{utils::indices(grid_data)};
-
-				std::for_each(std::execution::par_unseq, indices.begin(), indices.end(), [this](const size_t& index)
-					{
-					utils::math::vec2s coords{grid_data.get_coords(index)};
-					if (coords.x > 0) { update_backbuffer_tile(grid_data[coords], data_humidity_backbuffer[coords.x - 1, coords.y]); }
-					});
-				std::for_each(std::execution::par_unseq, indices.begin(), indices.end(), [this](const size_t& index)
-					{
-					utils::math::vec2s coords{grid_data.get_coords(index)};
-					if (coords.y > 0) { update_backbuffer_tile(grid_data[coords], data_humidity_backbuffer[coords.x, coords.y - 1]); }
-					});
-				std::for_each(std::execution::par_unseq, indices.begin(), indices.end(), [this](const size_t& index)
-					{
-					utils::math::vec2s coords{grid_data.get_coords(index)};
-					if (coords.x > 0 && coords.y > 0) { update_backbuffer_tile(grid_data[coords], data_humidity_backbuffer[coords.x - 1, coords.y - 1]); }
-					});
-
-				std::for_each(std::execution::par_unseq, indices.begin(), indices.end(), [this](const size_t& index)
-					{
-					utils::math::vec2s coords{grid_data.get_coords(index)};
-					if (coords.x < (grid_data.width() - 1)) { update_backbuffer_tile(grid_data[coords], data_humidity_backbuffer[coords.x + 1, coords.y]); }
-					});
-				std::for_each(std::execution::par_unseq, indices.begin(), indices.end(), [this](const size_t& index)
-					{
-					utils::math::vec2s coords{grid_data.get_coords(index)};
-					if (coords.y < (grid_data.height() - 1)) { update_backbuffer_tile(grid_data[coords], data_humidity_backbuffer[coords.x, coords.y + 1]); }
-					});
-				std::for_each(std::execution::par_unseq, indices.begin(), indices.end(), [this](const size_t& index)
-					{
-					utils::math::vec2s coords{grid_data.get_coords(index)};
-					if (coords.x < (grid_data.width() - 1) && coords.y < (grid_data.height() - 1)) { update_backbuffer_tile(grid_data[coords], data_humidity_backbuffer[coords.x + 1, coords.y + 1]); }
-					});
-
-				std::for_each(std::execution::par_unseq, indices.begin(), indices.end(), [this](const size_t& index)
-					{
-					utils::math::vec2s coords{grid_data.get_coords(index)};
-					if (coords.x > 0 && coords.y < (grid_data.height() - 1)) { update_backbuffer_tile(grid_data[coords], data_humidity_backbuffer[coords.x - 1, coords.y + 1]); }
-					});
-				std::for_each(std::execution::par_unseq, indices.begin(), indices.end(), [this](const size_t& index)
-					{
-					utils::math::vec2s coords{grid_data.get_coords(index)};
-					if (coords.x < (grid_data.width() - 1) && coords.y > 0) { update_backbuffer_tile(grid_data[coords], data_humidity_backbuffer[coords.x + 1, coords.y - 1]); }
-					});
-				}
-
-			void backbuffer_to_front() noexcept
-				{
-				auto indices{utils::indices(grid_data)};
-
-				std::for_each(std::execution::par_unseq, indices.begin(), indices.end(), [this](const size_t& index)
-					{
-					utils::math::vec2s coords{grid_data.get_coords(index)};
-					auto& tile_data{grid_data[coords]};
-					const auto& data_humidity_backbuffer_tile{data_humidity_backbuffer[coords]};
-					tile_data.humidity = data_humidity_backbuffer_tile;
-					});
-				}
-		};
-
-
-	class renderer
-		{
-		public:
-			renderer()
-				{
-				va[0].color = sf::Color{0, 0, 255};
-				va[1].color = sf::Color{0, 255, 0};
-				va[2].color = sf::Color{255, 0, 0};
-				}
-
-			void draw(sf::RenderTarget& render_target, float delta_time, float interpolation)
-				{
-				render_target.draw(va);
-				}
-
-			void on_resize(utils::math::vec2s new_size)
-				{
-				va[1].position.x = new_size.x * 2;
-				va[2].position.y = new_size.y * 2;
-				}
-
-		private:
-			sf::VertexArray va{sf::Triangles, 3};
-
-		};
-	}
-
-	#include <SFML/OpenGL.hpp>
-int maain()
-	{
-
 	sf_globals::font.loadFromFile("cour.ttf");
 
-	iige::window window{iige::window::create_info{.title{"Plant"}, .size{800, 600}}};
+	const float steps_per_second{10.f};
+	const float seconds_per_step{1.f / steps_per_second};
 
-	game::terrain terrain{game::terrain::create_info{.grid_size{200, 200}}};
-	game::renderer renderer;
+
+	iige::window window{iige::window::create_info{.title{"Plant"}, .size{800, 600}}};
+	game::game game;
 
 	iige::systems_manager systems_manager;
-	systems_manager.step.emplace([&terrain](float delta_time)
+	//systems_manager.step.emplace([&time, &seconds_per_step](float delta_time)
+	//	{
+	//	time += seconds_per_step;
+	//	});
+	systems_manager.draw.emplace([&window](float delta_time, float interpolation)
 		{
-		terrain.step(delta_time);
-		});
-	systems_manager.draw.emplace([&window, &renderer](float delta_time, float interpolation)
-		{
-		//terrain.draw(delta_time, interpolation);
-		renderer.draw(window, delta_time, interpolation);
-
+		
 		window.display();
 		});
 
@@ -232,10 +58,10 @@ int maain()
 			case sf::Event::Closed: window.close(); break;
 			case sf::Event::Resized: 
 				{
-				sf::FloatRect visibleArea(0, 0, event.size.width, event.size.height);
+				sf::FloatRect visibleArea(0, 0, static_cast<float>(event.size.width), static_cast<float>(event.size.height));
 				window.setView(sf::View(visibleArea));
 
-				renderer.on_resize({event.size.width, event.size.height});
+				//renderer.on_resize({event.size.width, event.size.height});
 				break;
 				}
 			}
@@ -244,7 +70,7 @@ int maain()
 		};
 
 	window.display();
-	iige::loop::fixed_game_speed_variable_framerate loop{window_loop_interop, 10.f};
+	iige::loop::fixed_game_speed_variable_framerate loop{window_loop_interop, steps_per_second};
 
 	loop.run();
 

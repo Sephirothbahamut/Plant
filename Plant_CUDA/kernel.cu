@@ -93,9 +93,7 @@ __global__ void kernel(std::byte* g_odata, utils::math::vec2s texture_size)
 	}
 
 
-
-#include <iostream>
-int main()
+int main_draw()
 	{
 	sf::Context context;
 	context.setActive(true);

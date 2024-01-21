@@ -88,17 +88,23 @@
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <CudaCompile Include="game_impl.cu" />
     <CudaCompile Include="kernel.cu" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="game_loading.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="cuda.cuh" />
+    <ClInclude Include="game_gpu_impl.cuh" />
+    <ClInclude Include="game.h" />
     <ClInclude Include="IIGE\globals.h" />
     <ClInclude Include="IIGE\loop.h" />
     <ClInclude Include="IIGE\systems_manager.h" />
     <ClInclude Include="IIGE\window.h" />
     <ClInclude Include="IIGE\window_loop_interop.h" />
+    <ClInclude Include="nlohmann_json.h" />
     <ClInclude Include="sfglobals.h" />
     <ClInclude Include="window.h" />
     <ClInclude Include="window_loop_interop.h" />
