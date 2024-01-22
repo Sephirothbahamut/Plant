@@ -1,12 +1,13 @@
 #pragma once
 
 #include <memory>
+#include <algorithm>
 #include <filesystem>
 
 #include <utils/math/ranged.h>
 #include <utils/matrix_interface.h>
-#include <utils/containers/matrix_dyn.h>
 
+#include <thrust/device_vector.h>
 
 namespace game
 	{
@@ -33,6 +34,11 @@ namespace game
 				float sunlight_starting         { 0.0f};
 
 				utils_gpu_available float_ranged get_humidity(float time) const noexcept { return falloff(humidity_starting, humidity_falloff_intensity, time); }
+
+				utils_gpu_available inline void step(float time) noexcept
+					{
+					sunlight_starting = get_humidity(time);
+					}
 			private:
 
 			};
@@ -42,6 +48,16 @@ namespace game
 			public:
 				float humidity     {0.00001f};
 				float humidity_next{humidity};
+				float absorption   {0.50000f};
+				utils_gpu_available inline float get_distribution() const noexcept { return 1.f - absorption; }
+
+				utils_gpu_available inline void step(const terrain& terrain, float time) noexcept
+					{
+					humidity = humidity_next;
+
+					const float absorbed_humidity{absorption * terrain.get_humidity(time)};
+					humidity_next = std::min(1.f, humidity + absorbed_humidity);
+					}
 
 			private:
 
@@ -74,32 +90,30 @@ namespace game
 	struct data_cpu
 		{
 		metadata metadata;
-		utils::containers::matrix_dyn<tile> grid{32, 32};
+		utils::matrix<tile> grid{{32, 32}};
 		};
-
-	struct game_gpu
+	struct data_gpu
 		{
-		struct impl;
-	
-		std::unique_ptr<impl> impl_ptr;
-	
-		//these will be defined in the .cu file
-		game_gpu() noexcept;
-		~game_gpu();
-		void step(float delta_time) noexcept;
+		data_gpu(const data_cpu& data_cpu);
+		~data_gpu();
+
+		thrust::device_vector<tile> grid;
+		utils::matrix_wrapper<std::span<tile>> grid_kernel_side;
 		};
 
 	class game
 		{
 		public:
+			game(const data_cpu& data_cpu);
+			//~game();
 
 			data_cpu data_cpu;
-			game_gpu game_gpu;
+			data_gpu data_gpu;
 
-			void load_map (const std::filesystem::path& path);
-			void load_save(const std::filesystem::path& path);
+			static game load_map (const std::filesystem::path& path);
+			static game load_save(const std::filesystem::path& path);
 
-			void step(float delta_time);
+			void step(float delta_time) noexcept;
 		
 		private:
 			void cpu_to_gpu() noexcept;

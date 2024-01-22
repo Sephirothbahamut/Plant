@@ -32,9 +32,9 @@ namespace game
 
 			namespace grid
 				{
-				utils::containers::matrix_dyn<tile> from_image(const sf::Image& sf_image)
+				utils::matrix<tile> from_image(const sf::Image& sf_image)
 					{
-					utils::containers::matrix_dyn<tile> grid_data{sf_image.getSize().x, sf_image.getSize().y};
+					utils::matrix<tile> grid_data{{sf_image.getSize().x, sf_image.getSize().y}};
 					auto indices{utils::indices(grid_data)};
 
 					std::for_each(std::execution::par_unseq, indices.begin(), indices.end(), [&grid_data, &sf_image](const size_t& index)
@@ -56,7 +56,7 @@ namespace game
 					return grid_data;
 					}
 
-				utils::containers::matrix_dyn<tile> from_file(const std::filesystem::path& path)
+				utils::matrix<tile> from_file(const std::filesystem::path& path)
 					{
 					sf::Image sf_image;
 					if (!sf_image.loadFromFile(path.string())) { throw std::runtime_error{"Failed to load image from path: \"" + path.string() + "\"."}; }
@@ -76,7 +76,9 @@ namespace game
 				const auto wind_key{json["wind"]};
 
 				const std::string grid_data_str{json["grid_data"]};
-				const std::filesystem::path grid_data_path{grid_data_str};
+				auto root_path{path};
+				root_path.remove_filename();
+				const std::filesystem::path grid_data_path{root_path / grid_data_str};
 
 				return
 					{
@@ -120,7 +122,7 @@ namespace game
 
 			namespace grid
 				{
-				void from_image(const sf::Image& sf_image, utils::containers::matrix_dyn<tile>& grid_data)
+				void from_image(const sf::Image& sf_image, utils::matrix<tile>& grid_data)
 					{
 					if (sf_image.getSize().x != grid_data.width() || sf_image.getSize().y != grid_data.height())
 						{
@@ -148,7 +150,7 @@ namespace game
 						});
 					}
 
-				utils::containers::matrix_dyn<tile> from_file(const std::filesystem::path& path, utils::containers::matrix_dyn<tile>& grid_data)
+				utils::matrix<tile> from_file(const std::filesystem::path& path, utils::matrix<tile>& grid_data)
 					{
 					sf::Image sf_image;
 					if (!sf_image.loadFromFile(path.string())) { throw std::runtime_error{"Failed to load image from path: \"" + path.string() + "\"."}; }
@@ -172,7 +174,9 @@ namespace game
 				const std::filesystem::path map_path{map_str};
 
 				const std::string grid_data_str{json["grid_data"]};
-				const std::filesystem::path grid_data_path{grid_data_str};
+				auto root_path{path};
+				root_path.remove_filename();
+				const std::filesystem::path grid_data_path{root_path / grid_data_str};
 
 				data_cpu data_cpu{map::from_file(map_str)};
 
@@ -191,12 +195,12 @@ namespace game
 			}
 		}
 	
-	void game::load_map(const std::filesystem::path& path)
+	game game::load_map(const std::filesystem::path& path)
 		{
-		data_cpu = loading::map::from_file(path);
+		return {loading::map::from_file(path)};
 		}
-	void game::load_save(const std::filesystem::path& path)
+	game game::load_save(const std::filesystem::path& path)
 		{
-		data_cpu = loading::map::from_file(path);
+		return {loading::map::from_file(path)};
 		}
 	}

@@ -15,6 +15,7 @@
 #include <utils/memory.h>
 #include <utils/math/math.h>
 #include <utils/index_range.h>
+#include <utils/console/initializer.h>
 #include <utils/containers/matrix_dyn.h>
 
 #include <SFML/Window.hpp>
@@ -30,6 +31,8 @@
 
 int main()
 	{
+	utils::console::initializer initializer_console;
+
 	sf_globals::font.loadFromFile("cour.ttf");
 
 	const float steps_per_second{10.f};
@@ -37,16 +40,16 @@ int main()
 
 
 	iige::window window{iige::window::create_info{.title{"Plant"}, .size{800, 600}}};
-	game::game game;
+	game::game game{game::game::load_map("./data/maps/sample_map_large.json")};
 
 	iige::systems_manager systems_manager;
-	//systems_manager.step.emplace([&time, &seconds_per_step](float delta_time)
-	//	{
-	//	time += seconds_per_step;
-	//	});
+
+	systems_manager.step.emplace([&game](float delta_time)
+		{
+		game.step(delta_time);
+		});
 	systems_manager.draw.emplace([&window](float delta_time, float interpolation)
 		{
-		
 		window.display();
 		});
 
@@ -70,8 +73,8 @@ int main()
 		};
 
 	window.display();
-	iige::loop::fixed_game_speed_variable_framerate loop{window_loop_interop, steps_per_second};
-
+	//iige::loop::fixed_game_speed_variable_framerate loop{window_loop_interop, steps_per_second};
+	iige::loop::variable_fps_and_game_speed loop{window_loop_interop};
 	loop.run();
 
 	return 0;

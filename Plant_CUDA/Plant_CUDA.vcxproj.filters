@@ -45,7 +45,7 @@
     <ClInclude Include="cuda.cuh">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="game_gpu_impl.cuh">
+    <ClInclude Include="renderer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -54,6 +54,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="game_loading.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="utils_implementations.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
