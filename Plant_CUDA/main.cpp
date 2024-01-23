@@ -26,8 +26,77 @@
 #include "IIGE/systems_manager.h"
 #include "IIGE/window_loop_interop.h"
 
-#include "game.h"
 #include "sfglobals.h"
+
+#include "game.h"
+#include "texture.h"
+#include "renderer.h"
+
+
+class cuda_gl_texture
+	{
+	public:
+		class cuda_resource_mapper
+			{
+			friend class cuda_gl_texture;
+			public:
+				~cuda_resource_mapper() { cudaGraphicsUnmapResources(1, &cuda_gl_texture.cuda_pbo_dest_resource, 0); }
+
+				utils::matrix_wrapper<std::span<utils::graphics::colour::rgba_u>> get_kernel_side()
+					{
+					auto ptr{get_mapped_pointer()};
+					utils::math::vec2s sizes{cuda_gl_texture.texture.getSize().x, cuda_gl_texture.texture.getSize().y};
+					std::span<utils::graphics::colour::rgba_u> span{ptr, sizes.x * sizes.y};
+					return utils::matrix_wrapper<std::span<utils::graphics::colour::rgba_u>>{sizes, span};
+					}
+
+			private:
+				cuda_resource_mapper(cuda_gl_texture& cuda_gl_texture) : cuda_gl_texture{cuda_gl_texture} { cudaGraphicsMapResources(1, &cuda_gl_texture.cuda_pbo_dest_resource, 0); }
+				cuda_gl_texture& cuda_gl_texture;
+
+				utils::graphics::colour::rgba_u* get_mapped_pointer()
+					{
+					utils::graphics::colour::rgba_u* ptr;
+					size_t num_bytes;
+					cudaGraphicsResourceGetMappedPointer((void**)&ptr, &num_bytes, cuda_gl_texture.cuda_pbo_dest_resource);
+					return ptr;
+					}
+			};
+
+		cuda_gl_texture(const utils::math::vec2s& sizes)
+			{
+			texture.create(sizes.x, sizes.y);
+			init_pbo();
+			}
+
+		cuda_resource_mapper map_to_cuda() noexcept { return cuda_resource_mapper{*this}; }
+
+		sf::Texture texture;
+
+		void init_pbo()
+			{
+			//unsigned int num_texels{texture.getSize().x * texture.getSize().y};
+			//unsigned int num_values{num_texels * 4};
+			//unsigned int size_tex_data{sizeof(GLubyte) * num_values};
+			//void* data{malloc(size_tex_data)};
+			//
+			//// create buffer object
+			//glGenBuffers(1, &pbo_dest);
+			//glBindBuffer(GL_ARRAY_BUFFER, pbo_dest);
+			//glBufferData(GL_ARRAY_BUFFER, size_tex_data, data, GL_DYNAMIC_DRAW);
+			//free(data);
+			//
+			//glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+			// register this buffer object with CUDA
+			pbo_dest = texture.getNativeHandle();
+			cudaGraphicsGLRegisterBuffer(&cuda_pbo_dest_resource, pbo_dest, cudaGraphicsMapFlagsNone);
+			}
+
+	private:
+		cudaGraphicsResource* cuda_pbo_dest_resource;
+		GLuint pbo_dest;
+	};
 
 int main()
 	{
@@ -40,7 +109,14 @@ int main()
 
 
 	iige::window window{iige::window::create_info{.title{"Plant"}, .size{800, 600}}};
-	game::game game{game::game::load_map("./data/maps/sample_map_large.json")};
+
+	utils::graphics::image image{"./data/textures/sample_tileset.png"};
+	utils::CUDA::texture texture{image};
+
+	cuda_gl_texture cuda_gl_texture{{32, 32}};
+
+
+	game::game game{game::game::load_map("./data/maps/sample_map.json")};
 
 	iige::systems_manager systems_manager;
 
@@ -48,8 +124,12 @@ int main()
 		{
 		game.step(delta_time);
 		});
-	systems_manager.draw.emplace([&window](float delta_time, float interpolation)
+	systems_manager.draw.emplace([&window, &cuda_gl_texture](float delta_time, float interpolation)
 		{
+
+
+		sf::Sprite sprite{cuda_gl_texture.texture};
+		window.draw(sprite);
 		window.display();
 		});
 

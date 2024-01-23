@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include <utils/math/vec2.h>
+#include <utils/matrix_interface.h>
 
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
@@ -16,10 +17,72 @@
 #include <GL/GL.h>
 #include "cuda_gl_interop.h"
 
+#include "cuda.cuh"
+/*
+class cuda_gl_texture
+	{
+	public:
+		class cuda_resource_mapper
+			{
+			friend class cuda_gl_texture;
+			public:
+				~cuda_resource_mapper() { cudaGraphicsUnmapResources(1, &cuda_gl_texture.cuda_pbo_dest_resource, 0); }
 
+				utils::matrix_wrapper<std::span<utils::graphics::colour::rgba_u>> get_kernel_side()
+					{
+					auto ptr{get_mapped_pointer()};
+					utils::math::vec2s sizes{cuda_gl_texture.texture.getSize().x, cuda_gl_texture.texture.getSize().y};
+					std::span<utils::graphics::colour::rgba_u> span{ptr, sizes.x * sizes.y};
+					return utils::matrix_wrapper<std::span<utils::graphics::colour::rgba_u>>{sizes, span};
+					}
 
+			private:
+				cuda_resource_mapper(cuda_gl_texture& cuda_gl_texture) : cuda_gl_texture{cuda_gl_texture} { cudaGraphicsMapResources(1, &cuda_gl_texture.cuda_pbo_dest_resource, 0); }
+				cuda_gl_texture& cuda_gl_texture;
 
+				utils::graphics::colour::rgba_u* get_mapped_pointer()
+					{
+					utils::graphics::colour::rgba_u* ptr;
+					size_t num_bytes;
+					cudaGraphicsResourceGetMappedPointer((void**)&ptr, &num_bytes, cuda_gl_texture.cuda_pbo_dest_resource);
+					return ptr;
+					}
+			};
 
+		cuda_gl_texture(const utils::math::vec2s& sizes)
+			{
+			texture.create(sizes.x, sizes.y);
+			init_pbo();
+			}
+
+		cuda_resource_mapper map_to_cuda() noexcept { return cuda_resource_mapper{*this}; }
+
+		sf::Texture texture;
+
+		void init_pbo()
+			{
+			//unsigned int num_texels{texture.getSize().x * texture.getSize().y};
+			//unsigned int num_values{num_texels * 4};
+			//unsigned int size_tex_data{sizeof(GLubyte) * num_values};
+			//void* data{malloc(size_tex_data)};
+			//
+			//// create buffer object
+			//glGenBuffers(1, &pbo_dest);
+			//glBindBuffer(GL_ARRAY_BUFFER, pbo_dest);
+			//glBufferData(GL_ARRAY_BUFFER, size_tex_data, data, GL_DYNAMIC_DRAW);
+			//free(data);
+			//
+			//glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+			// register this buffer object with CUDA
+			pbo_dest = texture.getNativeHandle();
+			cudaGraphicsGLRegisterBuffer(&cuda_pbo_dest_resource, pbo_dest, cudaGraphicsMapFlagsNone);
+			}
+
+	private:
+		cudaGraphicsResource* cuda_pbo_dest_resource;
+		GLuint pbo_dest;
+	};
 
 struct cuda_gl_interop_texture_stuff
 	{
@@ -28,8 +91,6 @@ struct cuda_gl_interop_texture_stuff
 	unsigned int size_tex_data;
 	unsigned int num_texels;
 	unsigned int num_values;
-
-	GLuint tex_cudaResult;
 
 	GLuint pbo_dest;
 	cudaGraphicsResource* cuda_pbo_dest_resource;
@@ -92,8 +153,13 @@ __global__ void kernel(std::byte* g_odata, utils::math::vec2s texture_size)
 	g_odata[base_index + 3] = static_cast<std::byte>(a * 255.f);
 	}
 
+__global__ void kernel2(utils::matrix_wrapper<std::span<utils::graphics::colour::rgba_u>> matrix)
+	{
+	const auto coords{utils::cuda::kernel::coordinates::total::vec3()};
+	printf("(%u, %u, %u)\n", coords.x, coords.y, coords.z);
+	}
 
-int main_draw()
+int main()
 	{
 	sf::Context context;
 	context.setActive(true);
@@ -138,8 +204,18 @@ int main_draw()
 		glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
 		}
 
+	if (true)
+		{
+		cuda_gl_texture cgt{{32, 32}};
+		auto mapper{cgt.map_to_cuda()};
+		auto kernel_side{mapper.get_kernel_side()};
+
+		kernel2<<<grid, block>>>(kernel_side);
+		}
+
 	auto image{texture.copyToImage()};
 	image.saveToFile("hello.png");
 
 	return 0;
 	}
+	*/

@@ -22,21 +22,21 @@ namespace utils::cuda
 		{
 		namespace local
 			{
-			__device__ unsigned int x() noexcept { return threadIdx.x; }
-			__device__ unsigned int y() noexcept { return threadIdx.y; }
-			__device__ unsigned int z() noexcept { return threadIdx.z; }
+			__device__ inline unsigned int x() noexcept { return threadIdx.x; }
+			__device__ inline unsigned int y() noexcept { return threadIdx.y; }
+			__device__ inline unsigned int z() noexcept { return threadIdx.z; }
 
-			__device__ utils::math::vec3u vec2() noexcept { return {x(), y()}; }
-			__device__ utils::math::vec3u vec3() noexcept { return {x(), y(), z()}; }
+			__device__ inline utils::math::vec3u vec2() noexcept { return {x(), y()}; }
+			__device__ inline utils::math::vec3u vec3() noexcept { return {x(), y(), z()}; }
 			}
 		namespace total
 			{
-			__device__ unsigned int x() noexcept { return blockIdx.x * blockDim.x + threadIdx.x; }
-			__device__ unsigned int y() noexcept { return blockIdx.y * blockDim.y + threadIdx.y; }
-			__device__ unsigned int z() noexcept { return blockIdx.z * blockDim.z + threadIdx.z; }
+			__device__ inline unsigned int x() noexcept { return blockIdx.x * blockDim.x + threadIdx.x; }
+			__device__ inline unsigned int y() noexcept { return blockIdx.y * blockDim.y + threadIdx.y; }
+			__device__ inline unsigned int z() noexcept { return blockIdx.z * blockDim.z + threadIdx.z; }
 
-			__device__ utils::math::vec3u vec2() noexcept { return {x(), y()}; }
-			__device__ utils::math::vec3u vec3() noexcept { return {x(), y(), z()}; }
+			__device__ inline utils::math::vec3u vec2() noexcept { return {x(), y()}; }
+			__device__ inline utils::math::vec3u vec3() noexcept { return {x(), y(), z()}; }
 			}
 		}
 	
