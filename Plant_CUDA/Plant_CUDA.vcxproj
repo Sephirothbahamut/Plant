@@ -90,15 +90,18 @@
   <ItemGroup>
     <CudaCompile Include="game.cu" />
     <CudaCompile Include="kernel.cu" />
+    <CudaCompile Include="renderer.cu" />
     <CudaCompile Include="texture.cu" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="game_loading.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="mains_wrapper.cpp" />
     <ClCompile Include="utils_implementations.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="cuda.cuh" />
+    <ClInclude Include="utils_cuda.h" />
     <ClInclude Include="game.h" />
     <ClInclude Include="IIGE\globals.h" />
     <ClInclude Include="IIGE\loop.h" />

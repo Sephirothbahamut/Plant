@@ -18,8 +18,10 @@
 #include "cuda_gl_interop.h"
 
 #include "cuda.cuh"
-/*
-class cuda_gl_texture
+
+#include "texture.h"
+
+/*class cuda_gl_texture
 	{
 	public:
 		class cuda_resource_mapper
@@ -82,7 +84,7 @@ class cuda_gl_texture
 	private:
 		cudaGraphicsResource* cuda_pbo_dest_resource;
 		GLuint pbo_dest;
-	};
+	};*/
 
 struct cuda_gl_interop_texture_stuff
 	{
@@ -156,16 +158,26 @@ __global__ void kernel(std::byte* g_odata, utils::math::vec2s texture_size)
 __global__ void kernel2(utils::matrix_wrapper<std::span<utils::graphics::colour::rgba_u>> matrix)
 	{
 	const auto coords{utils::cuda::kernel::coordinates::total::vec3()};
-	printf("(%u, %u, %u)\n", coords.x, coords.y, coords.z);
+	//printf("(%u, %u, %u)\n", coords.x, coords.y, coords.z);
+
+	if (!matrix.validate_coords(coords)) { return; }
+
+	matrix[coords] = utils::graphics::colour::rgba_u
+		{
+		static_cast<uint8_t>((coords.x / matrix.width ()) * 255.f),
+		static_cast<uint8_t>((coords.y / matrix.height()) * 255.f),
+		static_cast<uint8_t>(255.f),
+		static_cast<uint8_t>(255.f)
+		};
 	}
 
-int main()
+void false_main()
 	{
 	sf::Context context;
 	context.setActive(true);
 	glewInit(); //glewInit MUST be called after initializing a context, wether real or unused. Otherwise opengl functions won't be available
 
-	utils::math::vec2s texture_size{805, 600};
+	utils::math::vec2s texture_size{32, 32};
 
 	sf::Texture texture;
 	texture.create(texture_size.x, texture_size.y);
@@ -184,38 +196,54 @@ int main()
 
 	if (true)
 		{
-		std::byte* out_data;
-		cudaGraphicsMapResources(1, &cgits.cuda_pbo_dest_resource, 0);
-		size_t num_bytes;
-		cudaGraphicsResourceGetMappedPointer((void**)&out_data, &num_bytes, cgits.cuda_pbo_dest_resource);
+		utils::cuda::gl_texture cuda_gl_texture{texture_size};
+		if (true)
+			{
+			auto mapper{cuda_gl_texture.map_to_cuda()};
+			auto kernel_side{mapper.get_kernel_side()};
+			kernel2<<<grid, block>>>(kernel_side);
+			}
 
-		kernel<<<grid, block>>>(out_data, texture_size);
 
-		cudaDeviceSynchronize();
+		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
 
-		cudaGraphicsUnmapResources(1, &cgits.cuda_pbo_dest_resource, 0);
-		glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, cgits.pbo_dest);
-
-		glBindTexture(GL_TEXTURE_2D, texture.getNativeHandle());
-		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture_size.x, texture_size.y, GL_RGBA,
-			GL_UNSIGNED_BYTE, NULL);
-
-		glBindBuffer(GL_PIXEL_PACK_BUFFER_ARB, 0);
-		glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
+		//display image beg
+		//display image end
 		}
 
-	if (true)
-		{
-		cuda_gl_texture cgt{{32, 32}};
-		auto mapper{cgt.map_to_cuda()};
-		auto kernel_side{mapper.get_kernel_side()};
-
-		kernel2<<<grid, block>>>(kernel_side);
-		}
+	//if (true)
+	//	{
+	//
+	//
+	//	std::byte* out_data;
+	//	utils::cuda::check_throwing(cudaGraphicsMapResources(1, &cgits.cuda_pbo_dest_resource, 0));
+	//	size_t num_bytes;
+	//	utils::cuda::check_throwing(cudaGraphicsResourceGetMappedPointer((void**)&out_data, &num_bytes, cgits.cuda_pbo_dest_resource));
+	//
+	//	kernel<<<grid, block>>>(out_data, texture_size);
+	//
+	//	cudaDeviceSynchronize();
+	//
+	//	utils::cuda::check_throwing(cudaGraphicsUnmapResources(1, &cgits.cuda_pbo_dest_resource, 0));
+	//	glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, cgits.pbo_dest);
+	//
+	//	glBindTexture(GL_TEXTURE_2D, texture.getNativeHandle());
+	//	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture_size.x, texture_size.y, GL_RGBA,
+	//		GL_UNSIGNED_BYTE, NULL);
+	//
+	//	glBindBuffer(GL_PIXEL_PACK_BUFFER_ARB, 0);
+	//	glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
+	//	}
+	//
+	//if (true)
+	//	{
+	//	utils::cuda::gl_texture cgt{{32, 32}};
+	//	auto mapper{cgt.map_to_cuda()};
+	//	auto kernel_side{mapper.get_kernel_side()};
+	//
+	//	kernel2<<<grid, block>>>(kernel_side);
+	//	}
 
 	auto image{texture.copyToImage()};
 	image.saveToFile("hello.png");
-
-	return 0;
 	}
-	*/
