@@ -16,7 +16,7 @@ void main_third()
 
     bool running = true;
     glewInit();
-    //window.resetGLStates();
+    window.resetGLStates();
     std::printf("OpenGL: %s:", glGetString(GL_VERSION));
     // We will not be using SFML's gl states.
 

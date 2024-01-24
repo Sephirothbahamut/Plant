@@ -44,7 +44,6 @@ namespace utils::cuda
 			thrust::device_vector<pixel_t> data;
 		};
 
-
 	class gl_texture
 		{
 		public:
@@ -52,7 +51,7 @@ namespace utils::cuda
 				{
 				friend class gl_texture;
 				public:
-					~cuda_resource_mapper() 
+					~cuda_resource_mapper()
 						{
 						//if constexpr (utils::compilation::debug) { cuda_gl_texture.debug_is_mapped_to_cuda = false; }
 						utils::cuda::check_throwing(cudaDestroySurfaceObject(surfObject));
@@ -68,7 +67,7 @@ namespace utils::cuda
 					cudaSurfaceObject_t get_surface_object() const noexcept { return surfObject; }
 
 				private:
-					cuda_resource_mapper(gl_texture& cuda_gl_texture) : cuda_gl_texture{cuda_gl_texture} 
+					cuda_resource_mapper(gl_texture& cuda_gl_texture) : cuda_gl_texture{cuda_gl_texture}
 						{
 						/*if constexpr (utils::compilation::debug)
 							{
@@ -83,7 +82,7 @@ namespace utils::cuda
 						memset(&resDesc, 0, sizeof(resDesc));
 						resDesc.resType = cudaResourceTypeArray;
 						resDesc.res.array.array = texture_ptr;
-						
+
 						cudaCreateSurfaceObject(&surfObject, &resDesc);
 						}
 
@@ -101,10 +100,10 @@ namespace utils::cuda
 				{
 				utils::cuda::check(cudaGraphicsUnregisterResource(cuda_resource_handle));
 				}
-				
-			cuda_resource_mapper map_to_cuda() 
+
+			cuda_resource_mapper map_to_cuda()
 				{
-				return cuda_resource_mapper{*this}; 
+				return cuda_resource_mapper{*this};
 				}
 
 			utils::math::vec2s sizes() const noexcept { return {texture.getSize().x, texture.getSize().y}; }
@@ -114,7 +113,7 @@ namespace utils::cuda
 			sf::Texture texture;
 			cudaGraphicsResource* cuda_resource_handle{nullptr};
 
-			inline static sf::Texture create_texture(const utils::math::vec2s& sizes) noexcept 
+			inline static sf::Texture create_texture(const utils::math::vec2s& sizes) noexcept
 				{
 				sf::Texture ret;
 				ret.create(sizes.x, sizes.y);
@@ -129,4 +128,89 @@ namespace utils::cuda
 				return ret;
 				}
 		};
+	//////////////////////////////////////////// sf::Texture > OpenGl texture > map to cuda array 
+	//class gl_texture
+	//	{
+	//	public:
+	//		class cuda_resource_mapper
+	//			{
+	//			friend class gl_texture;
+	//			public:
+	//				~cuda_resource_mapper() 
+	//					{
+	//					//if constexpr (utils::compilation::debug) { cuda_gl_texture.debug_is_mapped_to_cuda = false; }
+	//					utils::cuda::check_throwing(cudaDestroySurfaceObject(surfObject));
+	//					utils::cuda::check_throwing(cudaGraphicsUnmapResources(1, &cuda_gl_texture.cuda_resource_handle, 0));
+	//					}
+	//
+	//				/*kernel::texture<utils::graphics::colour::rgba_u> get_kernel_side()
+	//					{
+	//					auto ptr{get_mapped_pointer()};
+	//					std::span<utils::graphics::colour::rgba_u> span{ptr, cuda_gl_texture.sizes().x * cuda_gl_texture.sizes().y};
+	//					return utils::matrix_wrapper<std::span<utils::graphics::colour::rgba_u>>{cuda_gl_texture.sizes(), span};
+	//					}*/
+	//				cudaSurfaceObject_t get_surface_object() const noexcept { return surfObject; }
+	//
+	//			private:
+	//				cuda_resource_mapper(gl_texture& cuda_gl_texture) : cuda_gl_texture{cuda_gl_texture} 
+	//					{
+	//					/*if constexpr (utils::compilation::debug)
+	//						{
+	//						if (cuda_gl_texture.debug_is_mapped_to_cuda) { throw std::runtime_error{"Attempting to map to cuda a cuda::gl_texture that was already mapped."}; }
+	//						cuda_gl_texture.debug_is_mapped_to_cuda = true;
+	//						}*/
+	//					utils::cuda::check_throwing(cudaGraphicsMapResources(1, &cuda_gl_texture.cuda_resource_handle, 0));
+	//
+	//					cudaArray_t texture_ptr;
+	//					utils::cuda::check_throwing(cudaGraphicsSubResourceGetMappedArray(&texture_ptr, cuda_gl_texture.cuda_resource_handle, 0, 0));
+	//					cudaResourceDesc resDesc;
+	//					memset(&resDesc, 0, sizeof(resDesc));
+	//					resDesc.resType = cudaResourceTypeArray;
+	//					resDesc.res.array.array = texture_ptr;
+	//					
+	//					cudaCreateSurfaceObject(&surfObject, &resDesc);
+	//					}
+	//
+	//				gl_texture& cuda_gl_texture;
+	//				cudaSurfaceObject_t surfObject;
+	//			};
+	//		friend class cuda_resource_mapper;
+	//
+	//		gl_texture(const utils::math::vec2s& sizes) :
+	//			texture{create_texture(sizes)},
+	//			cuda_resource_handle{create_cuda_image(texture.getNativeHandle())}
+	//			{}
+	//
+	//		~gl_texture()
+	//			{
+	//			utils::cuda::check(cudaGraphicsUnregisterResource(cuda_resource_handle));
+	//			}
+	//			
+	//		cuda_resource_mapper map_to_cuda() 
+	//			{
+	//			return cuda_resource_mapper{*this}; 
+	//			}
+	//
+	//		utils::math::vec2s sizes() const noexcept { return {texture.getSize().x, texture.getSize().y}; }
+	//		const sf::Texture& get_texture() const noexcept { return texture; }
+	//
+	//	private:
+	//		sf::Texture texture;
+	//		cudaGraphicsResource* cuda_resource_handle{nullptr};
+	//
+	//		inline static sf::Texture create_texture(const utils::math::vec2s& sizes) noexcept 
+	//			{
+	//			sf::Texture ret;
+	//			ret.create(sizes.x, sizes.y);
+	//			unsigned int opengl_pixel_buffer_object_handle{ret.getNativeHandle()};
+	//			return ret;
+	//			}
+	//		inline static cudaGraphicsResource* create_cuda_image(unsigned int opengl_pixel_buffer_object_handle)
+	//			{
+	//			cudaGraphicsResource* ret{nullptr};
+	//			cudaDeviceSynchronize();
+	//			utils::cuda::check_throwing(cudaGraphicsGLRegisterImage(&ret, opengl_pixel_buffer_object_handle, GL_TEXTURE_2D, cudaGraphicsRegisterFlagsWriteDiscard));
+	//			return ret;
+	//			}
+	//	};
 	}

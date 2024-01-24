@@ -7,7 +7,7 @@ void main_third();
 
 int main()
 	{
-	auto function{&main_third};
+	auto function{&false_main};
 
 	/*
 	function();

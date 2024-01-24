@@ -81,8 +81,8 @@ void OpenGLTest::createFrame(float time)
 
 void OpenGLTest::setupOpenGL()
     {
-    image = new uchar4[1024 * 1024];
-
+    //image = new uchar4[1024 * 1024];
+    image = new uchar4[windowSize.x * windowSize.y];
     glViewport(0, 0, windowSize.x, windowSize.y);
 
     glMatrixMode(GL_MODELVIEW);

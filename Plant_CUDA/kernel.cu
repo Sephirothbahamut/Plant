@@ -184,13 +184,13 @@ __global__ void kernel2(cudaSurfaceObject_t surface, utils::math::vec2s sizes)//
 
 void false_main()
 	{
+	sf::Context context;
 	//glewInit(); //glewInit MUST be called after initializing a context, wether real or unused. Otherwise opengl functions won't be available
 
 	utils::math::vec2s texture_size{32, 32};
 
 	sf::Texture texture;
 	texture.create(texture_size.x, texture_size.y);
-
 	//cuda_gl_interop_texture_stuff cgits{texture_size};
 
 	// calculate grid size
