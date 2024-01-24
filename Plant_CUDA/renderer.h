@@ -28,7 +28,7 @@ namespace renderer
 		public:
 			utils::cuda::kernel::texture<utils::graphics::colour::rgba_f> kernel_tileset_texture;
 
-			void draw(utils::cuda::kernel::texture<utils::graphics::colour::rgba_u> render_target);
+			void draw(utils::cuda::render_target render_target);
 		private:
 		};
 	}

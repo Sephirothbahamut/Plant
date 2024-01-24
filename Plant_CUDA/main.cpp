@@ -67,12 +67,11 @@ void true_main()
 		{
 		try
 			{
-
 			if (true)
 				{
 				//CUDA rendering
 				auto mapper{cuda_render_target.gl_texture.map_to_cuda()};
-				//renderer.draw(mapper.get_kernel_side());
+				renderer.draw(mapper.get_cuda_render_target());
 				}
 
 			cuda_render_target.draw(window);
@@ -104,7 +103,7 @@ void true_main()
 		};
 
 	window.display();
-	//iige::loop::fixed_game_speed_variable_framerate loop{window_loop_interop, steps_per_second};
-	iige::loop::variable_fps_and_game_speed loop{window_loop_interop};
+	iige::loop::fixed_game_speed_variable_framerate loop{window_loop_interop, steps_per_second};
+	//iige::loop::variable_fps_and_game_speed loop{window_loop_interop};
 	loop.run();
 	}

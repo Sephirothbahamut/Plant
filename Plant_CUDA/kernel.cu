@@ -155,13 +155,13 @@ __global__ void kernel(std::byte* g_odata, utils::math::vec2s texture_size)
 	g_odata[base_index + 3] = static_cast<std::byte>(a * 255.f);
 	}
 
-__global__ void kernel2(cudaSurfaceObject_t surface, utils::math::vec2s sizes)//utils::matrix_wrapper<std::span<utils::graphics::colour::rgba_u>> matrix)
+__global__ void kernel2(utils::cuda::render_target render_target)//utils::matrix_wrapper<std::span<utils::graphics::colour::rgba_u>> matrix)
 	{
 	const auto coords{utils::cuda::kernel::coordinates::total::vec3()};
 	//printf("(%u, %u, %u)\n", coords.x, coords.y, coords.z);
 
 	//if (!matrix.validate_coords(coords)) { return; }
-	if (!(coords.x < sizes.x && coords.y < sizes.y)) { return; }
+	if (!(coords.x < render_target.sizes.x && coords.y < render_target.sizes.y)) { return; }
 
 
 	/*matrix[coords] = utils::graphics::colour::rgba_u
@@ -174,12 +174,12 @@ __global__ void kernel2(cudaSurfaceObject_t surface, utils::math::vec2s sizes)//
 
 	uchar4 pixel_data = make_uchar4
 		(
-		static_cast<uint8_t>((coords.x / (sizes.x / 2.f)) * 255.f),
-		static_cast<uint8_t>((coords.y / (sizes.y / 2.f)) * 255.f),
+		static_cast<uint8_t>((coords.x / (render_target.sizes.x / 2.f)) * 255.f),
+		static_cast<uint8_t>((coords.y / (render_target.sizes.y / 2.f)) * 255.f),
 		static_cast<uint8_t>(255.f),
 		static_cast<uint8_t>(255.f)
 		);
-	surf2Dwrite(pixel_data, surface, coords.x * sizeof(uchar4), coords.y);
+	surf2Dwrite(pixel_data, render_target.surface, coords.x * sizeof(uchar4), coords.y);
 	}
 
 void false_main()
@@ -209,8 +209,8 @@ void false_main()
 		if (true)
 			{
 			auto mapper{cuda_gl_texture.map_to_cuda()};
-			auto surface{mapper.get_surface_object()};
-			kernel2<<<grid, block>>>(surface, texture_size);
+			auto render_target{mapper.get_cuda_render_target()};
+			kernel2<<<grid, block>>>(render_target);
 			}
 
 
