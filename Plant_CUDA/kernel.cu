@@ -187,7 +187,7 @@ void false_main()
 	sf::Context context;
 	//glewInit(); //glewInit MUST be called after initializing a context, wether real or unused. Otherwise opengl functions won't be available
 
-	utils::math::vec2s texture_size{32, 32};
+	utils::math::vec2s texture_size{1024, 768};
 
 	sf::Texture texture;
 	texture.create(texture_size.x, texture_size.y);
