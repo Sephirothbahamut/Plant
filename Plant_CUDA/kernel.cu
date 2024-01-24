@@ -155,34 +155,43 @@ __global__ void kernel(std::byte* g_odata, utils::math::vec2s texture_size)
 	g_odata[base_index + 3] = static_cast<std::byte>(a * 255.f);
 	}
 
-__global__ void kernel2(utils::matrix_wrapper<std::span<utils::graphics::colour::rgba_u>> matrix)
+__global__ void kernel2(cudaSurfaceObject_t surface, utils::math::vec2s sizes)//utils::matrix_wrapper<std::span<utils::graphics::colour::rgba_u>> matrix)
 	{
 	const auto coords{utils::cuda::kernel::coordinates::total::vec3()};
 	//printf("(%u, %u, %u)\n", coords.x, coords.y, coords.z);
 
-	if (!matrix.validate_coords(coords)) { return; }
+	//if (!matrix.validate_coords(coords)) { return; }
+	if (!(coords.x < sizes.x && coords.y < sizes.y)) { return; }
 
-	matrix[coords] = utils::graphics::colour::rgba_u
+
+	/*matrix[coords] = utils::graphics::colour::rgba_u
 		{
 		static_cast<uint8_t>((coords.x / matrix.width ()) * 255.f),
 		static_cast<uint8_t>((coords.y / matrix.height()) * 255.f),
 		static_cast<uint8_t>(255.f),
 		static_cast<uint8_t>(255.f)
-		};
+		};*/
+
+	uchar4 pixel_data = make_uchar4
+		(
+		static_cast<uint8_t>((coords.x / (sizes.x / 2.f)) * 255.f),
+		static_cast<uint8_t>((coords.y / (sizes.y / 2.f)) * 255.f),
+		static_cast<uint8_t>(255.f),
+		static_cast<uint8_t>(255.f)
+		);
+	surf2Dwrite(pixel_data, surface, coords.x * sizeof(uchar4), coords.y);
 	}
 
 void false_main()
 	{
-	sf::Context context;
-	context.setActive(true);
-	glewInit(); //glewInit MUST be called after initializing a context, wether real or unused. Otherwise opengl functions won't be available
+	//glewInit(); //glewInit MUST be called after initializing a context, wether real or unused. Otherwise opengl functions won't be available
 
 	utils::math::vec2s texture_size{32, 32};
 
 	sf::Texture texture;
 	texture.create(texture_size.x, texture_size.y);
 
-	cuda_gl_interop_texture_stuff cgits{texture_size};
+	//cuda_gl_interop_texture_stuff cgits{texture_size};
 
 	// calculate grid size
 	dim3 block(16, 16, 1);
@@ -200,12 +209,13 @@ void false_main()
 		if (true)
 			{
 			auto mapper{cuda_gl_texture.map_to_cuda()};
-			auto kernel_side{mapper.get_kernel_side()};
-			kernel2<<<grid, block>>>(kernel_side);
+			auto surface{mapper.get_surface_object()};
+			kernel2<<<grid, block>>>(surface, texture_size);
 			}
 
 
-		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+		auto image{cuda_gl_texture.get_texture().copyToImage()};
+		image.saveToFile("hello.png");
 
 		//display image beg
 		//display image end
@@ -244,6 +254,6 @@ void false_main()
 	//	kernel2<<<grid, block>>>(kernel_side);
 	//	}
 
-	auto image{texture.copyToImage()};
-	image.saveToFile("hello.png");
+	//auto image{texture.copyToImage()};
+	//image.saveToFile("hello.png");
 	}

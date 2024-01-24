@@ -13,8 +13,11 @@
 #include "device_launch_parameters.h"
 #include "utils_cuda.h"
 
-#ifdef __intellisense__
+#ifdef __INTELLISENSE__
 void __syncthreads() {}
+
+template<class T>
+void surf2Dwrite(T data, cudaSurfaceObject_t surfObj, int x, int y, cudaSurfaceBoundaryMode boundaryMode = cudaBoundaryModeTrap);
 #endif
 
 namespace utils::cuda

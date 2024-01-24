@@ -72,7 +72,7 @@ void true_main()
 				{
 				//CUDA rendering
 				auto mapper{cuda_render_target.gl_texture.map_to_cuda()};
-				renderer.draw(mapper.get_kernel_side());
+				//renderer.draw(mapper.get_kernel_side());
 				}
 
 			cuda_render_target.draw(window);

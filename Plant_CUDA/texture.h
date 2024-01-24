@@ -55,16 +55,17 @@ namespace utils::cuda
 					~cuda_resource_mapper() 
 						{
 						//if constexpr (utils::compilation::debug) { cuda_gl_texture.debug_is_mapped_to_cuda = false; }
-						cudaGraphicsUnmapResources(1, &cuda_gl_texture.cuda_resource_handle, 0); 
-						cuda_gl_texture.apply_changes_to_texture();
+						utils::cuda::check_throwing(cudaDestroySurfaceObject(surfObject));
+						utils::cuda::check_throwing(cudaGraphicsUnmapResources(1, &cuda_gl_texture.cuda_resource_handle, 0));
 						}
 
-					kernel::texture<utils::graphics::colour::rgba_u> get_kernel_side()
+					/*kernel::texture<utils::graphics::colour::rgba_u> get_kernel_side()
 						{
 						auto ptr{get_mapped_pointer()};
 						std::span<utils::graphics::colour::rgba_u> span{ptr, cuda_gl_texture.sizes().x * cuda_gl_texture.sizes().y};
 						return utils::matrix_wrapper<std::span<utils::graphics::colour::rgba_u>>{cuda_gl_texture.sizes(), span};
-						}
+						}*/
+					cudaSurfaceObject_t get_surface_object() const noexcept { return surfObject; }
 
 				private:
 					cuda_resource_mapper(gl_texture& cuda_gl_texture) : cuda_gl_texture{cuda_gl_texture} 
@@ -75,31 +76,27 @@ namespace utils::cuda
 							cuda_gl_texture.debug_is_mapped_to_cuda = true;
 							}*/
 						utils::cuda::check_throwing(cudaGraphicsMapResources(1, &cuda_gl_texture.cuda_resource_handle, 0));
-						}
-					gl_texture& cuda_gl_texture;
 
-					utils::graphics::colour::rgba_u* get_mapped_pointer()
-						{
-						utils::graphics::colour::rgba_u* ptr;
-						size_t num_bytes;
-						utils::cuda::check_throwing(cudaGraphicsResourceGetMappedPointer((void**)&ptr, &num_bytes, cuda_gl_texture.cuda_resource_handle));
+						cudaArray_t texture_ptr;
+						utils::cuda::check_throwing(cudaGraphicsSubResourceGetMappedArray(&texture_ptr, cuda_gl_texture.cuda_resource_handle, 0, 0));
+						cudaResourceDesc resDesc;
+						memset(&resDesc, 0, sizeof(resDesc));
+						resDesc.resType = cudaResourceTypeArray;
+						resDesc.res.array.array = texture_ptr;
 						
-						const size_t expected_bytes{evaluate_required_bytes(cuda_gl_texture.sizes())};
-						if (expected_bytes != num_bytes)
-							{
-							throw std::runtime_error{"SHOULD NOT HAPPEN!"};
-							}
-						
-						return ptr;
+						cudaCreateSurfaceObject(&surfObject, &resDesc);
 						}
+
+					gl_texture& cuda_gl_texture;
+					cudaSurfaceObject_t surfObject;
 				};
+			friend class cuda_resource_mapper;
 
 			gl_texture(const utils::math::vec2s& sizes) :
-				opengl_pixel_buffer_object_handle{create_opengl_pixel_buffer_object(sizes)},
-				cuda_resource_handle{create_cuda_gl_registered_buffer(opengl_pixel_buffer_object_handle)}
-				{
-				texture.create(sizes.x, sizes.y);
-				}
+				texture{create_texture(sizes)},
+				cuda_resource_handle{create_cuda_image(texture.getNativeHandle())}
+				{}
+
 			~gl_texture()
 				{
 				utils::cuda::check(cudaGraphicsUnregisterResource(cuda_resource_handle));
@@ -111,66 +108,25 @@ namespace utils::cuda
 				}
 
 			utils::math::vec2s sizes() const noexcept { return {texture.getSize().x, texture.getSize().y}; }
-			const sf::Texture get_texture() const noexcept { return texture; }
+			const sf::Texture& get_texture() const noexcept { return texture; }
 
 		private:
-			unsigned int opengl_pixel_buffer_object_handle{0};
-			cudaGraphicsResource* cuda_resource_handle{nullptr};
 			sf::Texture texture;
+			cudaGraphicsResource* cuda_resource_handle{nullptr};
 
-			bool debug_is_mapped_to_cuda{false};
-
-			inline static size_t evaluate_required_bytes(const utils::math::vec2s sizes) noexcept
+			inline static sf::Texture create_texture(const utils::math::vec2s& sizes) noexcept 
 				{
-				const size_t num_texels{sizes.x * sizes.y};
-				const size_t num_values{num_texels * 4};
-				return sizeof(GLubyte) * num_values;
-				}
-
-			inline static unsigned int create_opengl_pixel_buffer_object(const utils::math::vec2s sizes) noexcept
-				{
-				unsigned int ret;
-				const size_t required_bytes{evaluate_required_bytes(sizes)};
-				void* data{malloc(required_bytes)};
-			
-				glGenBuffers(1, &ret);
-				glBindBuffer(GL_ARRAY_BUFFER, ret);
-				glBufferData(GL_ARRAY_BUFFER, required_bytes, data, GL_DYNAMIC_DRAW);
-				free(data);
-			
-				glBindBuffer(GL_ARRAY_BUFFER, 0);
-
+				sf::Texture ret;
+				ret.create(sizes.x, sizes.y);
+				unsigned int opengl_pixel_buffer_object_handle{ret.getNativeHandle()};
 				return ret;
 				}
-			inline static cudaGraphicsResource* create_cuda_gl_registered_buffer(unsigned int opengl_pixel_buffer_object_handle) noexcept
+			inline static cudaGraphicsResource* create_cuda_image(unsigned int opengl_pixel_buffer_object_handle)
 				{
 				cudaGraphicsResource* ret{nullptr};
-				utils::cuda::check_throwing(cudaGraphicsGLRegisterBuffer(&ret, opengl_pixel_buffer_object_handle, cudaGraphicsMapFlagsNone));
+				cudaDeviceSynchronize();
+				utils::cuda::check_throwing(cudaGraphicsGLRegisterImage(&ret, opengl_pixel_buffer_object_handle, GL_TEXTURE_2D, cudaGraphicsRegisterFlagsWriteDiscard));
 				return ret;
-				}
-			
-
-			unsigned int opengl_handle() const noexcept
-				{
-				/*if constexpr (utils::compilation::debug)
-					{
-					if (debug_is_mapped_to_cuda) { throw std::runtime_error{"Attempting to access the opengl handle of a cuda::gl_texture while it's mapped for cuda usage."}; }
-					}*/
-				return opengl_pixel_buffer_object_handle;
-				}
-			
-			const sf::Texture& apply_changes_to_texture() noexcept
-				{
-				glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, opengl_handle());
-
-				glBindTexture(GL_TEXTURE_2D, texture.getNativeHandle());
-				glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture.getSize().x, texture.getSize().y, GL_RGBA,
-					GL_UNSIGNED_BYTE, NULL);
-
-				glBindBuffer(GL_PIXEL_PACK_BUFFER_ARB, 0);
-				glBindBuffer(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
-
-				return texture;
 				}
 		};
 	}

@@ -57,6 +57,15 @@
     <ClInclude Include="utils_cuda.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="cuda_gl_device.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="helper_string.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="OpenGLTest.cuh">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -71,6 +80,9 @@
     <ClCompile Include="mains_wrapper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="third_trys_the_charm.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="kernel.cu">
@@ -83,6 +95,9 @@
       <Filter>Source Files</Filter>
     </CudaCompile>
     <CudaCompile Include="renderer.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="opengltest.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
   </ItemGroup>

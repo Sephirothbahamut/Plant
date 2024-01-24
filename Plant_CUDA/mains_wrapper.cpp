@@ -3,10 +3,11 @@
 
 void true_main();
 void false_main();
+void main_third();
 
 int main()
 	{
-	auto function{&true_main};
+	auto function{&main_third};
 
 	/*
 	function();
