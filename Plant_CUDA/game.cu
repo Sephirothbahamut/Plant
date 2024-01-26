@@ -53,6 +53,7 @@ __global__ void build_on_tile(utils::matrix_wrapper<std::span<game::tile>> grid,
 	grid[coords].plant.absorption    = absorption;
 	}
 
+
 namespace game
 	{
 	game::game(const ::game::data_cpu& data_cpu) : data_cpu{data_cpu}, data_gpu{data_cpu} {}
@@ -91,6 +92,13 @@ namespace game
 		utils::cuda::device::call(&::step_distribution, kernel_params, data_gpu.grid_kernel_side, utils::math::vec2u{ 1,  1});
 
 		utils::cuda::device::call(&::step_recover_undistributed, kernel_params, data_gpu.grid_kernel_side);
+
+		//TODO
+		//const auto absorbed_total{thrust::reduce(data_gpu.grid_kernel_side.begin(), data_gpu.grid_kernel_side.end(), 0.f, [] __device__(::game::tile lhs, ::game::tile rhs)
+		//	{
+		//	return (lhs.plant.absorbed_light + rhs.plant.absorbed_light);
+		//	})};
+		//data_cpu.build_points += absorbed_total * .001f; 
 		}
 
 	void game::build(float absorption) noexcept

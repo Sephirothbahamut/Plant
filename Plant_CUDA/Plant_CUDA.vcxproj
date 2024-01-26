@@ -84,7 +84,7 @@
     </Link>
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
-      <AdditionalOptions>--std c++20 --expt-relaxed-constexpr %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>--std c++20 --expt-relaxed-constexpr --extended-lambda %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>

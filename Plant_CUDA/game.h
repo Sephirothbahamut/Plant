@@ -48,15 +48,19 @@ namespace game
 			public:
 				float humidity                            {0.00000f};
 				float humidity_next                       {humidity};//for interpolation
-				float humidity_distributed_per_each_target{0.00000f};//temporary buffer
-				float humidity_to_distribute              {0.00000f};//temporary buffer
+				float humidity_distributed_per_each_target{0.00000f};//temporary buffer for humidity distribution
+				float humidity_to_distribute              {0.00000f};//temporary buffer for humidity distribution
 				float absorption                          {0.50000f};
+				float absorbed_light                      {0.00000f};//temporary buffer for score
+
 				utils_gpu_available inline float get_distribution() const noexcept { return 1.f - absorption; }
 
 				utils_gpu_available inline void step(const terrain& terrain, float time) noexcept
 					{
 					humidity = humidity_next;
-					if (humidity <= 0) { return; }
+					if (humidity <= 0) { absorbed_light = 0.f; return; }
+
+					absorbed_light = humidity * terrain.sunlight_starting;
 
 					const float humidity_absorbed{absorption * terrain.get_humidity(time)};
 					humidity_to_distribute = get_distribution() * humidity;
