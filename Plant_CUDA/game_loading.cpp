@@ -82,19 +82,18 @@ namespace game
 
 				return
 					{
-					.metadata
+					.wind
 						{
-						.wind
-							{
-							.direction
-								{//cast to uint16 to force nlohmann read a number rather than a char.
-								static_cast<uint8_t>(uint16_t{wind_key["x"]}),
-								static_cast<uint8_t>(uint16_t{wind_key["y"]})
-								},
-							.change_time{wind_key["direction_change_time"]}
+						.direction
+							{//cast to uint16 to force nlohmann read a number rather than a char.
+							static_cast<uint8_t>(uint16_t{wind_key["x"]}),
+							static_cast<uint8_t>(uint16_t{wind_key["y"]})
 							},
-						.build_points{json["starting_points"]}
+						.change_time{wind_key["direction_change_time"]}
 						},
+					.build_points{json["starting_points"]},
+					.camera_transform{0, 0},
+					.mouse_tile{0, 0},
 					.grid{grid::from_file(grid_data_path)}
 					};
 				}
@@ -180,13 +179,14 @@ namespace game
 
 				data_cpu data_cpu{map::from_file(map_str)};
 
-				data_cpu.metadata.wind.direction =
+				data_cpu.wind.direction =
 					{//cast to uint16 to force nlohmann read a number rather than a char.
 					static_cast<uint8_t>(uint16_t{wind_key["x"]}),
 					static_cast<uint8_t>(uint16_t{wind_key["y"]})
 					};
-				data_cpu.metadata.time         = json["time"];
-				data_cpu.metadata.build_points = json["build_points"];
+				data_cpu.time         = json["time"];
+				data_cpu.next_time    = json["time"];
+				data_cpu.build_points = json["build_points"];
 
 				grid::from_file(grid_data_path, data_cpu.grid);
 

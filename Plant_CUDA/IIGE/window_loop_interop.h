@@ -28,11 +28,6 @@ namespace iige
 				iige::window& window{this->window.get()};
 				iige::systems_manager& systems_manager{this->systems_manager.get()};
 
-				sf::Event event;
-				while (window.pollEvent(event)) 
-					{
-					if (!events_handler(event)) { window.close(); }
-					}
 
 				for (const auto& step_system : systems_manager.step)
 					{
@@ -42,6 +37,12 @@ namespace iige
 			void draw(float delta_time, float interpolation)
 				{
 				iige::window& window{this->window.get()};
+				sf::Event event;
+				while (window.pollEvent(event))
+					{
+					if (!events_handler(event)) { window.close(); }
+					}
+
 				iige::systems_manager& systems_manager{this->systems_manager.get()};
 
 				for (const auto& pre_draw_system : systems_manager.pre_draw)

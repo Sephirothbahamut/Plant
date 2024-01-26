@@ -30,7 +30,7 @@ namespace renderer
 			utils::cuda::kernel::texture<utils::graphics::colour::rgba_f> kernel_tileset_texture;
 			utils::observer_ptr<game::game> game_ptr;
 
-			void draw(utils::cuda::render_target render_target, float time);
+			void draw(utils::cuda::render_target render_target, float interpolation);
 		private:
 		};
 	}

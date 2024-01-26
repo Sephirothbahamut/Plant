@@ -80,7 +80,7 @@ void entry()
 	float build_absorption{.5f};
 	constexpr float build_absorption_scroll_delta{.1f};
 
-	systems_manager.step.emplace([&](float delta_time)
+	auto update_camera{[&](float delta_time)
 		{
 		utils::math::vec2f camera_delta
 			{
@@ -89,21 +89,23 @@ void entry()
 			};
 		camera_delta *= camera_speed_multiplier * delta_time;
 
-		auto previous_camera_tranform{game.data_cpu.metadata.camera_transform};
-		utils::math::vec2f new_camera{utils::math::vec2f{previous_camera_tranform} + camera_delta};
-		if (new_camera.x < 0) { new_camera.x = game.data_cpu.grid.width () - new_camera.x; }
-		if (new_camera.y < 0) { new_camera.y = game.data_cpu.grid.height() - new_camera.y; }
-		if (new_camera.x >= game.data_cpu.grid.width ()) { new_camera.x = game.data_cpu.grid.width () - new_camera.x; }
-		if (new_camera.y >= game.data_cpu.grid.height()) { new_camera.y = game.data_cpu.grid.height() - new_camera.y; }
+		utils::math::vec2f previous_camera_tranform{game.data_cpu.camera_transform};
+		utils::math::vec2f new_camera{previous_camera_tranform + camera_delta};
+		if (new_camera.x < 0.f) { new_camera.x = (game.data_cpu.grid.width () * 64.f) + new_camera.x; }
+		if (new_camera.y < 0.f) { new_camera.y = (game.data_cpu.grid.height() * 64.f) + new_camera.y; }
+		if (new_camera.x >= game.data_cpu.grid.width ()) { new_camera.x = new_camera.x - (game.data_cpu.grid.width () * 64.f); }
+		if (new_camera.y >= game.data_cpu.grid.height()) { new_camera.y = new_camera.y - (game.data_cpu.grid.height() * 64.f); }
 
-		game.data_cpu.metadata.camera_transform = new_camera;
+		game.data_cpu.camera_transform = new_camera;
+		}};
 
+	systems_manager.step.emplace([&](float delta_time)
+		{
 		game.step(delta_time);
 		});
 	systems_manager.draw.emplace([&](float delta_time, float interpolation)
 		{
-		game.data_gpu.time += delta_time;
-
+		update_camera(delta_time);
 		window.clear();
 		window.resetGLStates();
 		try
@@ -112,7 +114,7 @@ void entry()
 				{
 				//CUDA rendering
 				auto mapper{cuda_render_target.gl_texture.map_to_cuda()};
-				renderer.draw(mapper.get_cuda_render_target(), game.data_cpu.metadata.time);
+				renderer.draw(mapper.get_cuda_render_target(), interpolation);
 				}
 
 			cuda_render_target.draw(window);
@@ -124,9 +126,9 @@ void entry()
 
 		ui_overlay_text.setString
 			(
-			"Time: "                  + std::to_string(game.data_cpu.metadata.time        ) + 
-			"\nBuild points: "        + std::to_string(game.data_cpu.metadata.build_points) + 
-			"\nBuilding absorption: " + std::to_string(build_absorption                   )
+			"Time: "                  + std::to_string(static_cast<size_t>(game.data_cpu.time        )) + 
+			"\nBuild points: "        + std::to_string(static_cast<size_t>(game.data_cpu.build_points)) + 
+			"\nBuilding absorption: " + std::to_string(build_absorption          )
 			);
 		window.draw(ui_overlay_rect);
 		window.draw(ui_overlay_text);
@@ -150,11 +152,7 @@ void entry()
 				}
 			case sf::Event::MouseMoved:
 				{
-				const utils::math::vec2s mouse_position{event.mouseMove.x, event.mouseMove.y};
-				const utils::math::vec2s world_pixel   {mouse_position + game.data_cpu.metadata.camera_transform}; //pixel position in the world instead of in the window
-				const utils::math::vec2s world_coords  {world_pixel    % (game.data_cpu.grid.sizes() * 64)      }; //coordinates in the world taking wrapping into account
-				const utils::math::vec2s tile_coords   {world_coords   / 64                                     }; //coordinates of the tile in game data
-				game.data_cpu.metadata.mouse_tile = tile_coords;
+				game.update_mouse_position({event.mouseMove.x, event.mouseMove.y});
 				}
 			case sf::Event::MouseWheelScrolled:
 				{

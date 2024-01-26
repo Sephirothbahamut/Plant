@@ -81,7 +81,7 @@ __device__ float fancy_pattern(utils::math::vec2f p)
 
 
 
-__global__ void draw_texture(utils::cuda::render_target render_target, utils::cuda::kernel::texture<utils::graphics::colour::rgba_f> texture)
+__global__ void draw_texture(utils::cuda::render_target render_target, const utils::cuda::kernel::texture<utils::graphics::colour::rgba_f>& texture)
 	{
 	const auto coords{utils::cuda::kernel::coordinates::total::vec2()};
 	if (!render_target.validate_coords(coords)) { return; }
@@ -110,14 +110,14 @@ __global__ void draw_texture(utils::cuda::render_target render_target, utils::cu
 	surf2Dwrite(pixel_data, render_target.surface, coords.x * sizeof(uchar4), coords.y);
 	}
 
-__device__ utils::graphics::colour::rgba_f texture_tile_pixel(utils::cuda::kernel::texture<utils::graphics::colour::rgba_f> texture, utils::math::vec2s tile_coords, utils::math::vec2s pixel_in_tile)
+__device__ utils::graphics::colour::rgba_f texture_tile_pixel(const utils::cuda::kernel::texture<utils::graphics::colour::rgba_f>& texture, const utils::math::vec2s& tile_coords, const utils::math::vec2s& pixel_in_tile)
 	{
 	const auto pixel_coords{(tile_coords * size_t{64}) + pixel_in_tile};
 	return texture[pixel_coords];
 	}
-__device__ utils::graphics::colour::rgba_f texture_tile_pixel_animated(utils::cuda::kernel::texture<utils::graphics::colour::rgba_f> texture, size_t tile_id, utils::math::vec2s pixel_in_tile, float time)
+__device__ utils::graphics::colour::rgba_f texture_tile_pixel_animated(const utils::cuda::kernel::texture<utils::graphics::colour::rgba_f>& texture, size_t tile_id, const utils::math::vec2s& pixel_in_tile, float time)
 	{
-	const utils::math::vec2s tile_coords{std::fmod((time * 0.125f), 8.f), tile_id};
+	const utils::math::vec2s tile_coords{std::fmod((time * 3.f), 8.f), tile_id};
 	return texture_tile_pixel(texture, tile_coords, pixel_in_tile);
 	}
 
@@ -167,47 +167,75 @@ __device__ utils::graphics::colour::rgba_f terrain_colour(const utils::math::vec
 	return {rgb.r * value, rgb.g * value, rgb.b * value, 1.f};
 	}
 
-__device__ utils::graphics::colour::rgba_f plant_colour(utils::cuda::kernel::texture<utils::graphics::colour::rgba_f> texture, const game::tiles::plant& tile, utils::math::vec2s coord_in_tile, float time)
+__device__ utils::graphics::colour::rgba_f plant_humidity_colour(float humidity)
+	{
+	constexpr utils::graphics::colour::rgba_f colour_plant_max{0.0f, 1.0f, 0.0f};
+	constexpr utils::graphics::colour::rgba_f colour_plant_mid{.98f, .98f, .40f};
+	constexpr utils::graphics::colour::rgba_f colour_plant_min{.39f, .22f, .12f};
+	constexpr float                           mid_threshold   {.3f};
+
+	if (humidity > mid_threshold)
+		{
+		const float t{utils::math::map(mid_threshold, 1.f, 0.f, 1.f, humidity)};
+		return utils::math::lerp(colour_plant_mid, colour_plant_max, t);
+		}
+	else
+		{
+		const float t{utils::math::map(0.f, mid_threshold, 0.f, 1.f, humidity)};
+		return utils::math::lerp(colour_plant_min, colour_plant_mid, t);
+		}
+	}
+
+__device__ size_t plant_get_tileset_index(const utils::matrix_wrapper<std::span<game::tile>>& game_grid, const utils::math::vec2s coords_of_tile)
+	{
+	const bool ll{game_grid[game::coords::tile_neighbour(coords_of_tile, game_grid.sizes(), {-1,  0})].plant.humidity > 0.f};
+	const bool up{game_grid[game::coords::tile_neighbour(coords_of_tile, game_grid.sizes(), { 0, -1})].plant.humidity > 0.f};
+	const bool rr{game_grid[game::coords::tile_neighbour(coords_of_tile, game_grid.sizes(), { 1,  0})].plant.humidity > 0.f};
+	const bool dw{game_grid[game::coords::tile_neighbour(coords_of_tile, game_grid.sizes(), { 0,  1})].plant.humidity > 0.f};
+
+	if ( ll &&  up &&  rr &&  dw) { return 0; }
+	if ( up &&  dw && !ll && !rr) { return 1; }
+	if (!up && !dw &&  ll &&  rr) { return 2; }
+	}
+
+__device__ utils::graphics::colour::rgba_f plant_colour(const utils::matrix_wrapper<std::span<game::tile>>& game_grid, const utils::cuda::kernel::texture<utils::graphics::colour::rgba_f>& texture, const game::tiles::plant& tile, const utils::math::vec2s& coord_in_tile, float time, float interpolation)
 	{
 	if(tile.humidity == 0.f) { return {0.f, 0.f, 0.f, 0.f}; }
 
-	const auto base_plant{texture_tile_pixel_animated(texture, 0, coord_in_tile, time)};
+	const auto texture_plant_multiplier{texture_tile_pixel_animated(texture, 0, coord_in_tile, time)};
+	auto base_plant{plant_humidity_colour(utils::math::lerp(tile.humidity, tile.humidity_next, interpolation))};
+	base_plant.r *= texture_plant_multiplier.r;
+	base_plant.g *= texture_plant_multiplier.g;
+	base_plant.b *= texture_plant_multiplier.b;
+	base_plant.a  = texture_plant_multiplier.a;
 
-	const auto humidity_adjusted{colour_apply_humidity_saturation(base_plant, tile.humidity)};
-	const auto base_flower{texture_tile_pixel_animated(texture, 6, coord_in_tile, time)};
-	auto flower_hsv{base_flower.hsv()};
-	flower_hsv.h = flower_hsv.h + utils::math::lerp(.5f, 1.f, tile.absorption);
-	const auto absorption_adjusted{flower_hsv.rgb()};
-	return absorption_adjusted; //TODO blend, irrelevant now cause we don't have half-transparency in our tileset
+	auto base_flower{texture_tile_pixel_animated(texture, 6, coord_in_tile, time)};
+	base_flower.r =       tile.absorption;
+	base_flower.b = 1.f - tile.absorption;
+	return base_plant.blend(base_flower); //TODO blend, irrelevant now cause we don't have half-transparency in our tileset
 	}
 
-__global__ void draw(utils::cuda::render_target render_target, utils::cuda::kernel::texture<utils::graphics::colour::rgba_f> tileset_texture, game::data_kernel game_state)
+__global__ void draw(utils::cuda::render_target render_target, utils::cuda::kernel::texture<utils::graphics::colour::rgba_f> tileset_texture, game::kernel_data_for_draw game_state, float time, float interpolation)
 	{
 	const auto coords{utils::cuda::kernel::coordinates::total::vec2()};
 	if (!render_target.validate_coords(coords)) { return; }
 
-	
-	const utils::math::vec2s world_pixel   {coords + game_state.camera_transform}; //pixel position in the world instead of in the window
-	const utils::math::vec2s world_coords  {world_pixel    % (game_state.grid.sizes() * 64)}; //coordinates in the world taking wrapping into account
-	const utils::math::vec2s tile_coords   {world_coords   / 64                            }; //coordinates of the tile in game data
+	const auto evaluated_coords{game::coords::evaluate(coords, game_state.grid.sizes(), game_state.camera_transform)};
 
-	utils::math::vec2u coord_in_tile{world_pixel % size_t{64}};
-	utils::math::vec2f coord_in_tile_normalized{utils::math::vec2f{coord_in_tile} / 64.f};
+	const auto& tile{game_state.grid[evaluated_coords.of_tile]};
 
-	const auto& tile{game_state.grid[tile_coords]};
-
-	utils::graphics::colour::rgba_f colour_terrain{terrain_colour(world_pixel, tile.terrain.get_humidity(game_state.time))};
-	utils::graphics::colour::rgba_f colour_plant{plant_colour(tileset_texture, tile.plant, coord_in_tile, game_state.time)};
+	utils::graphics::colour::rgba_f colour_terrain{terrain_colour(evaluated_coords.in_world, tile.terrain.get_humidity(time))};
+	utils::graphics::colour::rgba_f colour_plant  {plant_colour  (game_state.grid, tileset_texture, tile.plant, evaluated_coords.in_tile, time, interpolation)};
 
 	utils::graphics::colour::rgba_f pixel_colour{colour_terrain.blend(colour_plant)};
 
 
 
 	////////////////////////////////// Mouseover tile begin
-	if (tile_coords == game_state.mouse_tile)
+	if (evaluated_coords.of_tile == game_state.mouse_tile)
 		{
-		if (coord_in_tile.x == 0 || coord_in_tile.x == 63 ||
-			coord_in_tile.y == 0 || coord_in_tile.y == 63)
+		if (evaluated_coords.in_tile.x == 0 || evaluated_coords.in_tile.x == 63 ||
+			evaluated_coords.in_tile.y == 0 || evaluated_coords.in_tile.y == 63)
 			{
 			pixel_colour.b = utils::math::map(0.f, 1.f, .8f, 1.f, pixel_colour.b);
 			}
@@ -219,10 +247,10 @@ __global__ void draw(utils::cuda::render_target render_target, utils::cuda::kern
 	////////////////////////////////// Mouseover tile end
 	else
 	////////////////////////////////// World edge begin
-	if ((tile_coords.x == 0 || tile_coords.y == 0) &&
+	if ((evaluated_coords.of_tile.x == 0 || evaluated_coords.of_tile.y == 0) &&
 		(
-		coord_in_tile.x == 0 || coord_in_tile.y == 0 ||
-		coord_in_tile.x == 1 || coord_in_tile.y == 1
+		evaluated_coords.in_tile.x == 0 || evaluated_coords.in_tile.y == 0 ||
+		evaluated_coords.in_tile.x == 1 || evaluated_coords.in_tile.y == 1
 		))
 		{
 		pixel_colour.r = utils::math::map(0.f, 1.f, 0.5f, 1.f, pixel_colour.r);
@@ -230,10 +258,10 @@ __global__ void draw(utils::cuda::render_target render_target, utils::cuda::kern
 		pixel_colour.b = utils::math::map(0.f, 1.f, 0.5f, 1.f, pixel_colour.b);
 		}
 	else
-	if ((tile_coords.x == game_state.grid.width() - 1|| tile_coords.y == game_state.grid.height() - 1) &&
+	if ((evaluated_coords.of_tile.x == game_state.grid.width() - 1|| evaluated_coords.of_tile.y == game_state.grid.height() - 1) &&
 		(
-		coord_in_tile.x == 63 || coord_in_tile.y == 63 ||
-		coord_in_tile.x == 62 || coord_in_tile.y == 62
+		evaluated_coords.in_tile.x == 63 || evaluated_coords.in_tile.y == 63 ||
+		evaluated_coords.in_tile.x == 62 || evaluated_coords.in_tile.y == 62
 		))
 		{
 		pixel_colour.r = utils::math::map(0.f, 1.f, 0.f, 0.5f, pixel_colour.r);
@@ -243,8 +271,8 @@ __global__ void draw(utils::cuda::render_target render_target, utils::cuda::kern
 	////////////////////////////////// World edge end
 	else
 	////////////////////////////////// Tile edge begin
-	if (coord_in_tile.x == 0 || coord_in_tile.x == 63 ||
-		coord_in_tile.y == 0 || coord_in_tile.y == 63)
+	if (evaluated_coords.in_tile.x == 0 || evaluated_coords.in_tile.x == 63 ||
+		evaluated_coords.in_tile.y == 0 || evaluated_coords.in_tile.y == 63)
 		{
 		pixel_colour.r = utils::math::map(0.f, 1.f, .3f, 1.f, pixel_colour.r);
 		}
@@ -293,7 +321,7 @@ __global__ void draw(utils::cuda::render_target render_target, utils::cuda::kern
 
 namespace renderer
 	{
-	void renderer::draw(utils::cuda::render_target render_target, float time)
+	void renderer::draw(utils::cuda::render_target render_target, float interpolation)
 		{
 		utils::cuda::device::params_t threads
 			{
@@ -311,7 +339,8 @@ namespace renderer
 				}
 			};
 
-		utils::cuda::device::call(&::draw, threads, render_target, kernel_tileset_texture, game_ptr->kernel_game_state());
+		const float time{utils::math::lerp(game_ptr->data_cpu.time, game_ptr->data_cpu.next_time, interpolation)};
+		utils::cuda::device::call(&::draw, threads, render_target, kernel_tileset_texture, game_ptr->kernel_data_for_draw(), time, interpolation);
 
 		//cudaDeviceSynchronize();
 		}
