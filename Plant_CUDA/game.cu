@@ -17,6 +17,13 @@ __global__ void step(utils::matrix_wrapper<std::span<game::tile>> grid, float ti
 	plant  .step(terrain, time);
 	}
 
+__global__ void build_on_tile(utils::matrix_wrapper<std::span<game::tile>> grid, utils::math::vec2s coords, float absorption)
+	{
+	grid[coords].plant.humidity      = .5f;
+	grid[coords].plant.humidity_next = .5f;
+	grid[coords].plant.absorption    = absorption;
+	}
+
 namespace game
 	{
 	game::game(const ::game::data_cpu& data_cpu) : data_cpu{data_cpu}, data_gpu{data_cpu} {}
@@ -35,6 +42,7 @@ namespace game
 	void game::step(float delta_time) noexcept
 		{
 		data_cpu.metadata.time += delta_time;
+		data_gpu.time = data_cpu.metadata.time;
 
 		utils::cuda::device::params_t kernel_params
 			{
@@ -43,6 +51,11 @@ namespace game
 			};
 
 		utils::cuda::device::call(&::step, kernel_params, data_gpu.grid_kernel_side, data_cpu.metadata.time);
+		}
+
+	void game::build(float absorption) noexcept
+		{
+		utils::cuda::device::call(&::build_on_tile, {.threads{.per_block{1u}, .blocks{1u}}}, data_gpu.grid_kernel_side, data_cpu.metadata.mouse_tile, absorption);
 		}
 
 	void game::cpu_to_gpu() noexcept

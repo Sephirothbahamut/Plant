@@ -46,7 +46,7 @@ namespace game
 		class plant
 			{
 			public:
-				float humidity     {0.00001f};
+				float humidity     {0.00000f};
 				float humidity_next{humidity};
 				float absorption   {0.50000f};
 				utils_gpu_available inline float get_distribution() const noexcept { return 1.f - absorption; }
@@ -74,22 +74,24 @@ namespace game
 
 		};
 
-	struct metadata
-		{
-		struct wind
-			{
-			vec2i_ranged direction;
-			float change_time;
-			} wind;
-
-		float time        {0.f};
-		float build_points{0.f};
-		};
-
-
 	struct data_cpu
 		{
-		metadata metadata;
+		struct metadata_t
+			{
+			struct wind
+				{
+				vec2i_ranged direction;
+				float change_time;
+				} wind;
+
+			float time{0.f};
+			float build_points{0.f};
+
+			utils::math::vec2s camera_transform{0, 0};
+			utils::math::vec2s mouse_tile{0, 0};
+			};
+
+		metadata_t metadata;
 		utils::matrix<tile> grid{{32, 32}};
 		};
 	struct data_gpu
@@ -97,8 +99,18 @@ namespace game
 		data_gpu(const data_cpu& data_cpu);
 		~data_gpu();
 
+		float time;
 		thrust::device_vector<tile> grid;
 		utils::matrix_wrapper<std::span<tile>> grid_kernel_side;
+		};
+
+	struct data_kernel
+		{
+		utils::matrix_wrapper<std::span<tile>> grid;
+		vec2i_ranged wind_direction;
+		utils::math::vec2s camera_transform;
+		utils::math::vec2s mouse_tile;
+		float time;
 		};
 
 	class game
@@ -110,13 +122,34 @@ namespace game
 			data_cpu data_cpu;
 			data_gpu data_gpu;
 
+			data_kernel kernel_game_state() const noexcept
+				{
+				return
+					{
+					.grid            {data_gpu.grid_kernel_side},
+					.wind_direction  {data_cpu.metadata.wind.direction},
+					.camera_transform{data_cpu.metadata.camera_transform},
+					.mouse_tile      {data_cpu.metadata.mouse_tile},
+					.time            {data_gpu.time}
+					};
+				}
+
 			static game load_map (const std::filesystem::path& path);
 			static game load_save(const std::filesystem::path& path);
 
 			void step(float delta_time) noexcept;
+			void attempt_build(float absorption) noexcept
+				{
+				if (data_cpu.metadata.build_points >= 100.f) 
+					{
+					data_cpu.metadata.build_points -= 100.f; 
+					build(absorption);
+					}
+				}
 		
 		private:
 			void cpu_to_gpu() noexcept;
 			void gpu_to_cpu() noexcept;
+			void build(float absorption) noexcept;
 		};
 	}

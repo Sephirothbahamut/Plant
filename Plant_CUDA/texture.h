@@ -167,7 +167,6 @@ namespace utils::cuda
 			inline static cudaGraphicsResource* create_cuda_image(unsigned int opengl_pixel_buffer_object_handle)
 				{
 				cudaGraphicsResource* ret{nullptr};
-				cudaDeviceSynchronize();
 				utils::cuda::check_throwing(cudaGraphicsGLRegisterImage(&ret, opengl_pixel_buffer_object_handle, GL_TEXTURE_2D, cudaGraphicsRegisterFlagsWriteDiscard));
 				return ret;
 				}

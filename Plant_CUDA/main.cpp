@@ -34,7 +34,7 @@
 #include "renderer.h"
 
 
-void true_main()
+void entry()
 	{
 	utils::console::initializer initializer_console;
 
@@ -48,7 +48,7 @@ void true_main()
 	glewInit(); //glewInit MUST be called after initializing a context, wether real or unused. Otherwise opengl functions won't be available
 
 
-	utils::graphics::image tilset_image{"./data/textures/sample_tileset.png"};
+	utils::graphics::image tilset_image{"./data/textures/plant_tileset.png"};
 	utils::cuda::texture tilset_texture{tilset_image};
 
 	renderer::render_target cuda_render_target{{window.getSize().x, window.getSize().y}};
@@ -56,22 +56,63 @@ void true_main()
 
 
 	game::game game{game::game::load_map("./data/maps/sample_map.json")};
+	renderer.game_ptr = &game;
 
 	iige::systems_manager systems_manager;
 
-	systems_manager.step.emplace([&game](float delta_time)
+	sf::Text ui_overlay_text{"", sf_globals::font, 12u};
+	ui_overlay_text.setPosition(4, 4);
+	ui_overlay_text.setColor({200, 200, 200, 255});
+
+	sf::RectangleShape ui_overlay_rect{{180, 60}};
+	ui_overlay_rect.setPosition(0, 0);
+	ui_overlay_rect.setOutlineThickness(1);
+	ui_overlay_rect.setOutlineColor(sf::Color::Black);
+	ui_overlay_rect.setFillColor(sf::Color{20, 20, 20, 200});
+
+
+
+	bool pressed_ll{false};
+	bool pressed_rr{false};
+	bool pressed_up{false};
+	bool pressed_dw{false};
+	float camera_speed_multiplier{1.f};
+	float build_absorption{.5f};
+	constexpr float build_absorption_scroll_delta{.1f};
+
+	systems_manager.step.emplace([&](float delta_time)
 		{
+		utils::math::vec2f camera_delta
+			{
+			static_cast<float>(pressed_rr) - static_cast<float>(pressed_ll),
+			static_cast<float>(pressed_dw) - static_cast<float>(pressed_up)
+			};
+		camera_delta *= camera_speed_multiplier * delta_time;
+
+		auto previous_camera_tranform{game.data_cpu.metadata.camera_transform};
+		utils::math::vec2f new_camera{utils::math::vec2f{previous_camera_tranform} + camera_delta};
+		if (new_camera.x < 0) { new_camera.x = game.data_cpu.grid.width () - new_camera.x; }
+		if (new_camera.y < 0) { new_camera.y = game.data_cpu.grid.height() - new_camera.y; }
+		if (new_camera.x >= game.data_cpu.grid.width ()) { new_camera.x = game.data_cpu.grid.width () - new_camera.x; }
+		if (new_camera.y >= game.data_cpu.grid.height()) { new_camera.y = game.data_cpu.grid.height() - new_camera.y; }
+
+		game.data_cpu.metadata.camera_transform = new_camera;
+
 		game.step(delta_time);
 		});
 	systems_manager.draw.emplace([&](float delta_time, float interpolation)
 		{
+		game.data_gpu.time += delta_time;
+
+		window.clear();
+		window.resetGLStates();
 		try
 			{
 			if (true)
 				{
 				//CUDA rendering
 				auto mapper{cuda_render_target.gl_texture.map_to_cuda()};
-				renderer.draw(mapper.get_cuda_render_target());
+				renderer.draw(mapper.get_cuda_render_target(), game.data_cpu.metadata.time);
 				}
 
 			cuda_render_target.draw(window);
@@ -80,10 +121,20 @@ void true_main()
 			{
 			std::cout << e.what() << std::endl;
 			}
+
+		ui_overlay_text.setString
+			(
+			"Time: "                  + std::to_string(game.data_cpu.metadata.time        ) + 
+			"\nBuild points: "        + std::to_string(game.data_cpu.metadata.build_points) + 
+			"\nBuilding absorption: " + std::to_string(build_absorption                   )
+			);
+		window.draw(ui_overlay_rect);
+		window.draw(ui_overlay_text);
 		window.display();
 		});
 
 	iige::window_loop_interop window_loop_interop{window, systems_manager};
+
 	window_loop_interop.events_handler = [&](const sf::Event& event) 
 		{
 		switch (event.type)
@@ -97,6 +148,50 @@ void true_main()
 				cuda_render_target.resize({event.size.width, event.size.height});
 				break;
 				}
+			case sf::Event::MouseMoved:
+				{
+				const utils::math::vec2s mouse_position{event.mouseMove.x, event.mouseMove.y};
+				const utils::math::vec2s world_pixel   {mouse_position + game.data_cpu.metadata.camera_transform}; //pixel position in the world instead of in the window
+				const utils::math::vec2s world_coords  {world_pixel    % (game.data_cpu.grid.sizes() * 64)      }; //coordinates in the world taking wrapping into account
+				const utils::math::vec2s tile_coords   {world_coords   / 64                                     }; //coordinates of the tile in game data
+				game.data_cpu.metadata.mouse_tile = tile_coords;
+				}
+			case sf::Event::MouseWheelScrolled:
+				{
+				build_absorption += event.mouseWheelScroll.delta * build_absorption_scroll_delta;
+				build_absorption = utils::math::clamp(build_absorption, 0.f, 1.f);
+				break;
+				}
+			case sf::Event::MouseButtonPressed:
+				{
+				if (event.mouseButton.button == sf::Mouse::Button::Left)
+					{
+					game.attempt_build(build_absorption);
+					}
+				break;
+				}
+			case sf::Event::KeyPressed:
+				{
+				switch (event.key.code)
+					{
+					case sf::Keyboard::Left : pressed_ll = true; break;
+					case sf::Keyboard::Right: pressed_rr = true; break;
+					case sf::Keyboard::Up   : pressed_up = true; break;
+					case sf::Keyboard::Down : pressed_dw = true; break;
+					}
+				break;
+				}
+			case sf::Event::KeyReleased:
+				{
+				switch (event.key.code)
+					{
+					case sf::Keyboard::Left : pressed_ll = false; break;
+					case sf::Keyboard::Right: pressed_rr = false; break;
+					case sf::Keyboard::Up   : pressed_up = false; break;
+					case sf::Keyboard::Down : pressed_dw = false; break;
+					}
+				break;
+				}
 			}
 
 		return true; 
@@ -106,4 +201,20 @@ void true_main()
 	iige::loop::fixed_game_speed_variable_framerate loop{window_loop_interop, steps_per_second};
 	//iige::loop::variable_fps_and_game_speed loop{window_loop_interop};
 	loop.run();
+	}
+
+int main()
+	{
+	auto function{&entry};
+
+	/*
+	function();
+	/*/
+	try { function(); }
+	catch (const std::exception& e)
+		{
+		std::cout << e.what() << std::endl;
+		}
+	/**/
+	return 0;
 	}

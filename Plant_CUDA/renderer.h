@@ -1,6 +1,7 @@
 #pragma once
 
 #include "texture.h"
+#include "game.h"
 
 namespace renderer
 	{
@@ -27,8 +28,9 @@ namespace renderer
 		{
 		public:
 			utils::cuda::kernel::texture<utils::graphics::colour::rgba_f> kernel_tileset_texture;
+			utils::observer_ptr<game::game> game_ptr;
 
-			void draw(utils::cuda::render_target render_target);
+			void draw(utils::cuda::render_target render_target, float time);
 		private:
 		};
 	}
