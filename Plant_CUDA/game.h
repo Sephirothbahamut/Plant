@@ -33,7 +33,7 @@ namespace game
 				float humidity_falloff_intensity{ 0.1f};
 				float sunlight_starting         { 0.0f};
 
-				utils_gpu_available float_ranged get_humidity(float time) const noexcept { return falloff(humidity_starting, humidity_falloff_intensity, time); }
+				utils_gpu_available float_ranged get_humidity(float time) const noexcept { return falloff(humidity_starting, humidity_falloff_intensity, time * 0.01f); }
 
 				utils_gpu_available inline void step(float time) noexcept
 					{
@@ -58,7 +58,7 @@ namespace game
 				utils_gpu_available inline void step(const terrain& terrain, float time) noexcept
 					{
 					humidity = humidity_next;
-					if (humidity <= 0) { absorbed_light = 0.f; return; }
+					if (humidity <= 0.1) { humidity = 0.f; absorbed_light = 0.f; return; }
 
 					absorbed_light = humidity * terrain.sunlight_starting;
 
@@ -67,7 +67,8 @@ namespace game
 					const float humidity_left{humidity - humidity_to_distribute};
 
 					humidity_distributed_per_each_target = humidity_to_distribute / 8.f;
-					humidity_next = utils::math::clamp(humidity_left + humidity_absorbed, 0.f, 1.f);
+					const float final_humidity{humidity_left + humidity_absorbed - terrain.sunlight_starting};
+					humidity_next = utils::math::clamp(final_humidity, 0.f, 1.f);
 					}
 
 				utils_gpu_available inline void step_distribution(plant& target) noexcept
@@ -171,7 +172,7 @@ namespace game
 		/// <param name="world_size"></param>
 		/// <param name="delta">Assumed to be [-1, 0, 1] </param>
 		/// <returns></returns>
-		utils_gpu_available inline utils::math::vec2s tile_neighbour(const utils::math::vec2s& source, const utils::math::vec2s& world_size, const utils::math::vec2u& delta)
+		utils_gpu_available inline utils::math::vec2s tile_neighbour(const utils::math::vec2s& source, const utils::math::vec2s& world_size, const utils::math::vec2i& delta)
 			{
 			utils::math::vec2s moved{source};
 
@@ -232,7 +233,7 @@ namespace game
 
 			void attempt_build(float absorption) noexcept
 				{
-				if (data_cpu.build_points < 100.f) { return; }
+				//if (data_cpu.build_points < 100.f) { return; }
 				//if (data_cpu.occupied_mask[coords::tile_neighbour(data_cpu.mouse_tile, data_cpu.grid.sizes(), {-1, -1})] ||
 				//	data_cpu.occupied_mask[coords::tile_neighbour(data_cpu.mouse_tile, data_cpu.grid.sizes(), { 0, -1})] ||
 				//	data_cpu.occupied_mask[coords::tile_neighbour(data_cpu.mouse_tile, data_cpu.grid.sizes(), { 1, -1})] ||

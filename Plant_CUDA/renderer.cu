@@ -193,23 +193,41 @@ __device__ size_t plant_get_tileset_index(const utils::matrix_wrapper<std::span<
 	const bool rr{game_grid[game::coords::tile_neighbour(coords_of_tile, game_grid.sizes(), { 1,  0})].plant.humidity > 0.f};
 	const bool dw{game_grid[game::coords::tile_neighbour(coords_of_tile, game_grid.sizes(), { 0,  1})].plant.humidity > 0.f};
 
-	if ( ll &&  up &&  rr &&  dw) { return 0; }
-	if ( up &&  dw && !ll && !rr) { return 1; }
-	if (!up && !dw &&  ll &&  rr) { return 2; }
+	if ( ll &&  up &&  rr &&  dw) { return  0; }//all
+
+	if (!ll &&  up && !rr &&  dw) { return  1; }//ver
+	if ( ll && !up &&  rr && !dw) { return  2; }//hor
+
+	if (!ll &&  up &&  rr &&  dw) { return  5; }//wall ll
+	if ( ll && !up &&  rr &&  dw) { return  4; }//wall up
+	if ( ll &&  up && !rr &&  dw) { return  3; }//wall rr
+	if ( ll &&  up &&  rr && !dw) { return  6; }//wall dw
+	
+	if ( ll &&  up && !rr && !dw) { return  9; }//curve ll up
+	if (!ll &&  up &&  rr && !dw) { return  8; }//curve up rr
+	if (!ll && !up &&  rr &&  dw) { return  7; }//curve rr dw
+	if ( ll && !up && !rr &&  dw) { return 10; }//curve dw ll
+	
+	if (!ll && !up &&  rr && !dw) { return 12; }//tail ll
+	if (!ll && !up && !rr &&  dw) { return 13; }//tail up
+	if ( ll && !up && !rr && !dw) { return 14; }//tail rr
+	if (!ll &&  up && !rr && !dw) { return 11; }//tail dw
+
+	return 15;
 	}
 
-__device__ utils::graphics::colour::rgba_f plant_colour(const utils::matrix_wrapper<std::span<game::tile>>& game_grid, const utils::cuda::kernel::texture<utils::graphics::colour::rgba_f>& texture, const game::tiles::plant& tile, const utils::math::vec2s& coord_in_tile, float time, float interpolation)
+__device__ utils::graphics::colour::rgba_f plant_colour(const utils::matrix_wrapper<std::span<game::tile>>& game_grid, const utils::cuda::kernel::texture<utils::graphics::colour::rgba_f>& texture, const game::tiles::plant& tile, const utils::math::vec2s& coords_of_tile, const utils::math::vec2s& coords_in_tile, float time, float interpolation)
 	{
 	if(tile.humidity == 0.f) { return {0.f, 0.f, 0.f, 0.f}; }
 
-	const auto texture_plant_multiplier{texture_tile_pixel_animated(texture, 0, coord_in_tile, time)};
+	const auto texture_plant_multiplier{texture_tile_pixel_animated(texture, plant_get_tileset_index(game_grid, coords_of_tile), coords_in_tile, time)};
 	auto base_plant{plant_humidity_colour(utils::math::lerp(tile.humidity, tile.humidity_next, interpolation))};
 	base_plant.r *= texture_plant_multiplier.r;
 	base_plant.g *= texture_plant_multiplier.g;
 	base_plant.b *= texture_plant_multiplier.b;
 	base_plant.a  = texture_plant_multiplier.a;
 
-	auto base_flower{texture_tile_pixel_animated(texture, 6, coord_in_tile, time)};
+	auto base_flower{texture_tile_pixel_animated(texture, 15, coords_in_tile, time)};
 	base_flower.r =       tile.absorption;
 	base_flower.b = 1.f - tile.absorption;
 	return base_plant.blend(base_flower); //TODO blend, irrelevant now cause we don't have half-transparency in our tileset
@@ -224,8 +242,17 @@ __global__ void draw(utils::cuda::render_target render_target, utils::cuda::kern
 
 	const auto& tile{game_state.grid[evaluated_coords.of_tile]};
 
-	utils::graphics::colour::rgba_f colour_terrain{terrain_colour(evaluated_coords.in_world, tile.terrain.get_humidity(time))};
-	utils::graphics::colour::rgba_f colour_plant  {plant_colour  (game_state.grid, tileset_texture, tile.plant, evaluated_coords.in_tile, time, interpolation)};
+	//utils::graphics::colour::rgba_f colour_terrain{terrain_colour(evaluated_coords.in_world, tile.terrain.get_humidity(time))};
+	float colour_terrain_shade{utils::math::map(0.f, 1.f, .5f, 1.f, terrain_colour_green_patch_mask(evaluated_coords.in_world))};
+	utils::graphics::colour::rgba_f colour_terrain
+		{
+		tile.terrain.sunlight_starting  * colour_terrain_shade,
+		tile.terrain.get_humidity(time) * colour_terrain_shade,
+		tile.terrain.get_humidity(time) * colour_terrain_shade
+		};
+
+
+	utils::graphics::colour::rgba_f colour_plant  {plant_colour  (game_state.grid, tileset_texture, tile.plant, evaluated_coords.of_tile, evaluated_coords.in_tile, time, interpolation)};
 
 	utils::graphics::colour::rgba_f pixel_colour{colour_terrain.blend(colour_plant)};
 
@@ -275,6 +302,8 @@ __global__ void draw(utils::cuda::render_target render_target, utils::cuda::kern
 		evaluated_coords.in_tile.y == 0 || evaluated_coords.in_tile.y == 63)
 		{
 		pixel_colour.r = utils::math::map(0.f, 1.f, .3f, 1.f, pixel_colour.r);
+		pixel_colour.g = utils::math::map(0.f, 1.f, .3f, 1.f, pixel_colour.g);
+		pixel_colour.b = utils::math::map(0.f, 1.f, .3f, 1.f, pixel_colour.b);
 		}
 	////////////////////////////////// Tile edge end
 

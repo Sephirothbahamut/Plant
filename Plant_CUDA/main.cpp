@@ -20,6 +20,7 @@
 
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
 
 #include "IIGE/loop.h"
 #include "IIGE/window.h"
@@ -36,9 +37,13 @@
 
 void entry()
 	{
+	sf::Music music_background;
+	music_background.openFromFile("./data/sounds/Plant_It_Music.wav");
+	music_background.setLoop(true);
+
 	utils::console::initializer initializer_console;
 
-	sf_globals::font.loadFromFile("cour.ttf");
+	sf_globals::font.loadFromFile("./data/fonts/cour.ttf");
 
 	const float steps_per_second{10.f};
 	const float seconds_per_step{1.f / steps_per_second};
@@ -76,7 +81,7 @@ void entry()
 	bool pressed_rr{false};
 	bool pressed_up{false};
 	bool pressed_dw{false};
-	float camera_speed_multiplier{1.f};
+	float camera_speed_multiplier{10.f};
 	float build_absorption{.5f};
 	constexpr float build_absorption_scroll_delta{.1f};
 
@@ -93,8 +98,8 @@ void entry()
 		utils::math::vec2f new_camera{previous_camera_tranform + camera_delta};
 		if (new_camera.x < 0.f) { new_camera.x = (game.data_cpu.grid.width () * 64.f) + new_camera.x; }
 		if (new_camera.y < 0.f) { new_camera.y = (game.data_cpu.grid.height() * 64.f) + new_camera.y; }
-		if (new_camera.x >= game.data_cpu.grid.width ()) { new_camera.x = new_camera.x - (game.data_cpu.grid.width () * 64.f); }
-		if (new_camera.y >= game.data_cpu.grid.height()) { new_camera.y = new_camera.y - (game.data_cpu.grid.height() * 64.f); }
+		if (new_camera.x >= (game.data_cpu.grid.width () * 64.f)) { new_camera.x = new_camera.x - (game.data_cpu.grid.width () * 64.f); }
+		if (new_camera.y >= (game.data_cpu.grid.height() * 64.f)) { new_camera.y = new_camera.y - (game.data_cpu.grid.height() * 64.f); }
 
 		game.data_cpu.camera_transform = new_camera;
 		}};
@@ -195,10 +200,16 @@ void entry()
 		return true; 
 		};
 
+
+	music_background.play();
+
 	window.display();
 	iige::loop::fixed_game_speed_variable_framerate loop{window_loop_interop, steps_per_second};
 	//iige::loop::variable_fps_and_game_speed loop{window_loop_interop};
 	loop.run();
+
+
+	music_background.stop();
 	}
 
 int main()
